@@ -1,4 +1,4 @@
-import type { Check, MxCheck, Scan } from "@mailguard/shared";
+import type { Check, MxCheck, Scan, ScanResponse } from "@mailguard/shared";
 import { vi } from "vitest";
 
 /** A Scan as the Worker would return it, with sensible defaults. */
@@ -28,8 +28,8 @@ export function anMxCheck(overrides: Partial<MxCheck> = {}): Check {
  * Stubs `fetch` for `/api/scan`. Pass a Scan to answer at once, or nothing to
  * get a request that stays pending until `respond` is called.
  */
-export function stubScanApi(scan?: Scan) {
-  let respond: (scan: Scan) => void = () => {};
+export function stubScanApi(scan?: ScanResponse) {
+  let respond: (body: ScanResponse) => void = () => {};
   const pending = new Promise<Response>((resolve) => {
     respond = (body) => resolve(Response.json(body));
   });
