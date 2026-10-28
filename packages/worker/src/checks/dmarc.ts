@@ -1,12 +1,15 @@
-import type { CheckResult, DmarcCheck, DmarcPolicy } from "@mailguard/shared";
+import type { DmarcCheck, DmarcPolicy } from "@mailguard/shared";
 import { discoverDmarcPolicy } from "../dmarc-policy-discovery";
-import type { CheckModule } from "./check-module";
+import { reporter, type CheckModule } from "./check-module";
 
 // Grading follows PRD §2.2 (DMARC), with RFC 9989 record semantics. Where the
 // policy record is found lives in ../dmarc-policy-discovery.ts.
 
+const report = reporter("dmarc", { policyDomain: null, policySource: null, record: null, policy: null, testMode: false });
+
 export const dmarcCheck: CheckModule<"dmarc"> = {
   kind: "dmarc",
+  report,
 
   async run({ domain, resolver }): Promise<DmarcCheck> {
     const discovery = await discoverDmarcPolicy(resolver, domain);
@@ -50,15 +53,7 @@ export const dmarcCheck: CheckModule<"dmarc"> = {
     }
     return report("pass", `${source} The policy is ${policy}, so receiving servers ${policy === "reject" ? "reject" : "send to spam"} mail that spoofs this domain.`, graded);
   },
-
-  inconclusive(explanation) {
-    return report("inconclusive", explanation);
-  },
 };
-
-function report(result: CheckResult, explanation: string, details: Partial<Omit<DmarcCheck, "kind" | "result" | "explanation">> = {}): DmarcCheck {
-  return { kind: "dmarc", result, explanation, policyDomain: null, policySource: null, record: null, policy: null, testMode: false, ...details };
-}
 
 /**
  * The record's `tag=value` pairs, tag names lower-cased. RFC 9989 §4.7: syntax

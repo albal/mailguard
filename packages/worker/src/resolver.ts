@@ -22,3 +22,8 @@ export type ResolveOutcome =
 export interface Resolver {
   resolve(name: string, type: RecordType): Promise<ResolveOutcome>;
 }
+
+/** Whether a query failed to give an answer (error or timeout), as opposed to answers, NODATA or NXDOMAIN. */
+export function isUndetermined(outcome: ResolveOutcome): boolean {
+  return outcome.kind === "error" || outcome.kind === "timeout";
+}

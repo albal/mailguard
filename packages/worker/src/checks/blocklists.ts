@@ -1,17 +1,21 @@
-import type { BlocklistCheck, BlocklistLookup, BlocklistOutcome, BlocklistSubjectRole, CheckResult } from "@mailguard/shared";
-import { blocklists, isIpv6, queryNameOf, type Blocklist } from "../blocklists";
+import type { BlocklistCheck, BlocklistLookup, BlocklistOutcome, BlocklistSubjectRole } from "@mailguard/shared";
+import { blocklists, queryNameOf, type Blocklist } from "../blocklists";
+import { isIpv6 } from "../ip-address";
 import { lookupMx, receivingIpsOf } from "../mx";
 import type { Resolver } from "../resolver";
 import { lookupSpfRecord, sendingIpsOf } from "../spf";
-import type { CheckContext, CheckModule } from "./check-module";
+import { reporter, type CheckContext, type CheckModule } from "./check-module";
 
 // PRD §2.2 (Blocklists): the Domain, its Sending IPs and its Receiving IPs,
 // looked up on every configured Blocklist. Any listing is a Fail.
 // Checks run concurrently, so this finds the IPs itself rather than reading
 // the SPF and MX Checks' results.
 
+const report = reporter("blocklists", { blocklists: [], lookups: [] });
+
 export const blocklistCheck: CheckModule<"blocklists"> = {
   kind: "blocklists",
+  report,
 
   async run(context): Promise<BlocklistCheck> {
     const { resolver, dqsKey } = context;
@@ -56,10 +60,6 @@ export const blocklistCheck: CheckModule<"blocklists"> = {
       `None of this domain's mail servers are listed on the ${names.length} Blocklists checked.`,
       details,
     );
-  },
-
-  inconclusive(explanation) {
-    return report("inconclusive", explanation);
   },
 };
 
@@ -106,12 +106,4 @@ async function outcomeOf(resolver: Resolver, blocklist: Blocklist, subject: stri
   if (answer.answers.some((code) => blocklist.listedCodes.includes(code))) return "listed";
   if (answer.answers.every((code) => blocklist.notListedCodes.includes(code))) return "not-listed";
   return "inconclusive";
-}
-
-function report(
-  result: CheckResult,
-  explanation: string,
-  details: Partial<Pick<BlocklistCheck, "blocklists" | "lookups">> = {},
-): BlocklistCheck {
-  return { kind: "blocklists", result, explanation, blocklists: [], lookups: [], ...details };
 }

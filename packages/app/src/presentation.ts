@@ -25,9 +25,10 @@ export const checkResultPresentation: Record<CheckResult, { icon: string; label:
   },
 };
 
-export const verdictLabels: Record<Verdict, string> = {
-  "high-risk": "High Risk",
-  "at-risk": "At Risk",
-  incomplete: "Incomplete",
-  "well-configured": "Well Configured",
+// Each Verdict's label and style: red for the two that need action.
+export const verdictPresentation: Record<Verdict, { label: string; className: string }> = {
+  "high-risk": { label: "High Risk", className: "text-accent-text" },
+  "at-risk": { label: "At Risk", className: "text-accent-text" },
+  incomplete: { label: "Incomplete", className: "" },
+  "well-configured": { label: "Well Configured", className: "" },
 };

@@ -1,11 +1,14 @@
-import type { CheckResult, MxCheck } from "@mailguard/shared";
+import type { MxCheck } from "@mailguard/shared";
 import { lookupMx } from "../mx";
-import type { CheckModule } from "./check-module";
+import { reporter, type CheckModule } from "./check-module";
 
 // Grading follows PRD §2.2 (MX).
 
+const report = reporter("mx", { nullMx: false, hosts: [], implicitMxAddresses: [] });
+
 export const mxCheck: CheckModule<"mx"> = {
   kind: "mx",
+  report,
 
   async run({ domain, resolver }): Promise<MxCheck> {
     const found = await lookupMx(resolver, domain);
@@ -40,18 +43,6 @@ export const mxCheck: CheckModule<"mx"> = {
       }
     }
   },
-
-  inconclusive(explanation) {
-    return report("inconclusive", explanation);
-  },
 };
 
 const UNDETERMINED = "The DNS lookups for this domain's mail servers failed or timed out, so MailGuard couldn't tell where its email goes.";
-
-function report(
-  result: CheckResult,
-  explanation: string,
-  details: Partial<Pick<MxCheck, "nullMx" | "hosts" | "implicitMxAddresses">> = {},
-): MxCheck {
-  return { kind: "mx", result, explanation, nullMx: false, hosts: [], implicitMxAddresses: [], ...details };
-}

@@ -2,14 +2,12 @@ import "./env";
 import type { ScanError, ScanResponse } from "@mailguard/shared";
 import { normaliseDomain } from "@mailguard/shared/domain-name";
 import { createDohResolver } from "./doh-resolver";
-import type { Resolver } from "./resolver";
 import { runScan, type ScanDeps } from "./scan";
 import { cachedScanResponse } from "./scan-cache";
 import { withCors } from "./cors";
 
-export interface Deps {
-  resolver: Resolver;
-  now: () => number;
+/** What the Worker is built from: the Scan's dependencies plus its edge services. */
+export interface Deps extends Omit<ScanDeps, "checkTimeoutMs" | "dqsKey"> {
   /** Per-Check timeout. Defaults to keep the whole Scan under 2.5 s. */
   checkTimeoutMs?: number;
   /** Edge cache for Scan responses. Defaults to `caches.default`. */

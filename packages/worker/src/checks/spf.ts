@@ -1,12 +1,15 @@
-import type { CheckResult, SpfQualifier, SpfCheck } from "@mailguard/shared";
+import { SPF_LOOKUP_LIMIT, type CheckResult, type SpfCheck, type SpfQualifier } from "@mailguard/shared";
 import type { Resolver } from "../resolver";
 import { lookupSpfRecord, sendingIpsOf, type SpfRecord } from "../spf";
-import type { CheckModule } from "./check-module";
+import { reporter, type CheckModule } from "./check-module";
 
 // Grading follows PRD §2.2 (SPF).
 
+const report = reporter("spf", { records: [], lookupCount: null, allQualifier: null, sendingIps: [] });
+
 export const spfCheck: CheckModule<"spf"> = {
   kind: "spf",
+  report,
 
   async run({ domain, resolver }): Promise<SpfCheck> {
     const found = await lookupSpfRecord(resolver, domain);
@@ -33,10 +36,10 @@ export const spfCheck: CheckModule<"spf"> = {
     const walk = await walkLookups(resolver, found.record);
     if (walk.problem === "undetermined") return report("inconclusive", UNDETERMINED, details);
     if (walk.problem) return report("fail", walk.problem.explanation, { ...details, lookupCount: walk.lookups });
-    if (walk.lookups > LOOKUP_LIMIT) {
+    if (walk.lookups > SPF_LOOKUP_LIMIT) {
       return report(
         "fail",
-        `This domain's SPF record needs more than ${LOOKUP_LIMIT} DNS lookups (counting nested includes), so receivers give up on it with an error and SPF doesn't protect the domain.`,
+        `This domain's SPF record needs more than ${SPF_LOOKUP_LIMIT} DNS lookups (counting nested includes), so receivers give up on it with an error and SPF doesn't protect the domain.`,
         { ...details, lookupCount: walk.lookups },
       );
     }
@@ -44,14 +47,8 @@ export const spfCheck: CheckModule<"spf"> = {
     const [result, explanation] = ALL_GRADES[allQualifier ?? "none"];
     return report(result, explanation, { ...details, allQualifier, lookupCount: walk.lookups });
   },
-
-  inconclusive(explanation) {
-    return report("inconclusive", explanation);
-  },
 };
 
-/** RFC 7208 §4.6.4: more DNS-querying terms than this across the whole evaluation is a permerror. */
-const LOOKUP_LIMIT = 10;
 const LOOKUP_TYPES = new Set(["include", "a", "mx", "ptr", "exists"]);
 
 interface Walk {
@@ -79,7 +76,7 @@ async function walkLookups(
     const included = await follow(resolver, mechanism.domainSpec, "includes", walk);
     if (!included) return done();
     await walkLookups(resolver, included, walk);
-    if (walk.problem || walk.lookups > LOOKUP_LIMIT) return done();
+    if (walk.problem || walk.lookups > SPF_LOOKUP_LIMIT) return done();
   }
 
   const all = record.mechanisms.find((m) => m.type === "all");
@@ -99,7 +96,7 @@ function hasMacro(domainSpec: string): boolean {
 /** Counts one DNS-querying term; false once over the limit. */
 function count(walk: Walk): boolean {
   walk.lookups += 1;
-  return walk.lookups <= LOOKUP_LIMIT;
+  return walk.lookups <= SPF_LOOKUP_LIMIT;
 }
 
 /** Fetches the SPF record at an include/redirect domain, recording any problem on `walk`. */
@@ -144,11 +141,3 @@ const ALL_GRADES: Record<SpfQualifier | "none", [CheckResult, string]> = {
     'This domain\'s SPF record has no "all" mechanism, so receivers are told nothing about mail from servers it doesn\'t list. End it with -all or ~all.',
   ],
 };
-
-function report(
-  result: CheckResult,
-  explanation: string,
-  details: Partial<Pick<SpfCheck, "records" | "lookupCount" | "allQualifier" | "sendingIps">> = {},
-): SpfCheck {
-  return { kind: "spf", result, explanation, records: [], lookupCount: null, allQualifier: null, sendingIps: [], ...details };
-}

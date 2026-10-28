@@ -1,3 +1,5 @@
+import { isIpv6, ipv6Nibbles } from "./ip-address";
+
 // The single Blocklist configuration (PRD §2.2 Blocklists, ADR-0002). To add a
 // Blocklist, add an entry here; the Blocklist Check consults every entry.
 // Only lists that answer Cloudflare's public resolver belong here.
@@ -97,31 +99,8 @@ export function queryNameOf(blocklist: Blocklist, subject: string, dqsKey?: stri
   return `${reversedSubject(blocklist, subject)}.${zone}`;
 }
 
-export function isIpv6(address: string): boolean {
-  return address.includes(":");
-}
-
 function reversedSubject(blocklist: Blocklist, subject: string): string {
   if (blocklist.lists === "domain") return subject;
   if (!isIpv6(subject)) return subject.split(".").reverse().join(".");
-  return expandIpv6(subject).split("").reverse().join(".");
-}
-
-/** An IPv6 address as its 32 hex nibbles, e.g. `2001:db8::1` → `20010db8000…0001`. */
-function expandIpv6(address: string): string {
-  let text = address.toLowerCase();
-  const lastColon = text.lastIndexOf(":");
-  const tail = text.slice(lastColon + 1);
-  if (tail.includes(".")) {
-    // An embedded IPv4 tail (e.g. `::ffff:192.0.2.1`) stands for two groups.
-    const [a, b, c, d] = tail.split(".").map(Number);
-    const hex = (n: number) => n.toString(16).padStart(2, "0");
-    text = `${text.slice(0, lastColon + 1)}${hex(a)}${hex(b)}:${hex(c)}${hex(d)}`;
-  }
-  const [head, rest] = text.split("::");
-  const headGroups = head === "" ? [] : head.split(":");
-  const restGroups = rest === undefined || rest === "" ? [] : rest.split(":");
-  const zeros = Array<string>(8 - headGroups.length - restGroups.length).fill("0");
-  const groups = rest === undefined ? headGroups : [...headGroups, ...zeros, ...restGroups];
-  return groups.map((g) => g.padStart(4, "0")).join("");
+  return ipv6Nibbles(subject).split("").reverse().join(".");
 }

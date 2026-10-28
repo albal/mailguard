@@ -1,5 +1,5 @@
-// Scan API contract shared by the Worker and the App. Types only: nothing
-// runtime crosses this boundary. Vocabulary follows GLOSSARY.md.
+// Scan API contract shared by the Worker and the App: types, plus the few
+// constants both sides must agree on. Vocabulary follows GLOSSARY.md.
 
 /** The outcome of a Check. */
 export type CheckResult = "pass" | "warning" | "fail" | "inconclusive";
@@ -33,6 +33,9 @@ export interface MxCheck extends CheckBase<"mx"> {
 
 /** An SPF mechanism's qualifier (RFC 7208 §4.6.2), e.g. on `all`. */
 export type SpfQualifier = "+" | "-" | "~" | "?";
+
+/** RFC 7208 §4.6.4: more DNS-querying SPF terms than this is a permerror. */
+export const SPF_LOOKUP_LIMIT = 10;
 
 export interface SpfCheck extends CheckBase<"spf"> {
   /** Every SPF record (`v=spf1 …`) published at the Domain: normally exactly one. */

@@ -1,7 +1,4 @@
-import type { SpfCheck } from "@mailguard/shared";
-
-/** SPF's DNS lookup limit (RFC 7208 §4.6.4). */
-const LOOKUP_LIMIT = 10;
+import { SPF_LOOKUP_LIMIT, type SpfCheck } from "@mailguard/shared";
 
 export function SpfDetails({ check }: { check: SpfCheck }) {
   if (check.records.length === 0) return null;
@@ -14,7 +11,7 @@ export function SpfDetails({ check }: { check: SpfCheck }) {
       </ul>
       {check.lookupCount !== null && (
         <p className="text-sm text-muted">
-          Uses {check.lookupCount} of {LOOKUP_LIMIT} DNS lookups
+          Uses {check.lookupCount} of {SPF_LOOKUP_LIMIT} DNS lookups
         </p>
       )}
     </div>

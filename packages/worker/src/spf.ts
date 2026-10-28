@@ -1,5 +1,6 @@
 import type { SpfQualifier } from "@mailguard/shared";
-import type { Resolver } from "./resolver";
+import { isIpv4, isIpv6 } from "./ip-address";
+import { isUndetermined, type Resolver } from "./resolver";
 
 // SPF records (RFC 7208 §4.5–§6, §7 macros, §12 ABNF): finding a domain's
 // record through the Resolver, and parsing it. Shared by the SPF Check and the
@@ -18,7 +19,7 @@ export type SpfLookup =
 /** Fetches and parses the SPF record published at `domain`. */
 export async function lookupSpfRecord(resolver: Resolver, domain: string): Promise<SpfLookup> {
   const txt = await resolver.resolve(domain, "TXT");
-  if (txt.kind === "error" || txt.kind === "timeout") return { kind: "undetermined" };
+  if (isUndetermined(txt)) return { kind: "undetermined" };
   const texts = txt.kind === "answers" ? txt.answers.filter(isSpfRecord) : [];
   if (texts.length === 0) return { kind: "none" };
   if (texts.length > 1) return { kind: "multiple", texts };
@@ -141,24 +142,4 @@ function isPrefixLength(text: string | undefined, max: number): boolean {
 function isDomainSpec(text: string): boolean {
   if (text === "" || !/^[\x21-\x7e]+$/.test(text)) return false;
   return /^(?:[^%]|%%|%_|%-|%\{[slodiphcrtv]\d*r?[.\-+,/_=]*\})+$/i.test(text);
-}
-
-function isIpv4(text: string): boolean {
-  const parts = text.split(".");
-  return parts.length === 4 && parts.every((p) => /^\d{1,3}$/.test(p) && Number(p) <= 255);
-}
-
-function isIpv6(text: string): boolean {
-  let hex = text;
-  if (text.includes(".")) {
-    // An embedded IPv4 tail (e.g. `::ffff:192.0.2.1`) stands for two groups.
-    const lastColon = text.lastIndexOf(":");
-    if (!isIpv4(text.slice(lastColon + 1))) return false;
-    hex = `${text.slice(0, lastColon + 1)}0:0`;
-  }
-  const halves = hex.split("::");
-  if (halves.length > 2) return false;
-  const groups = halves.flatMap((half) => (half === "" ? [] : half.split(":")));
-  if (!groups.every((g) => /^[0-9a-f]{1,4}$/i.test(g))) return false;
-  return halves.length === 2 ? groups.length < 8 : groups.length === 8;
 }

@@ -1,5 +1,5 @@
 import type { DmarcPolicySource } from "@mailguard/shared";
-import type { Resolver } from "./resolver";
+import { isUndetermined, type Resolver } from "./resolver";
 
 // DMARC policy discovery (RFC 9989 §4.10): where a Domain's DMARC policy
 // record is found. This is the only place that knows how; the DMARC Check
@@ -57,7 +57,7 @@ export async function discoverDmarcPolicy(resolver: Resolver, domain: string): P
 /** The single DMARC record at `_dmarc.<name>`, null if there is none (or several), or "undetermined". */
 async function lookupRecord(resolver: Resolver, name: string): Promise<string | null | "undetermined"> {
   const outcome = await resolver.resolve(`_dmarc.${name}`, "TXT");
-  if (outcome.kind === "error" || outcome.kind === "timeout") return "undetermined";
+  if (isUndetermined(outcome)) return "undetermined";
   const answers = outcome.kind === "answers" ? outcome.answers : [];
   const records = answers.filter(isDmarcRecord);
   // §4.10 steps 2 and 6: records not starting with v=DMARC1 are discarded, and several records mean none.

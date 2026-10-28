@@ -1,9 +1,15 @@
 import type { MxHost } from "@mailguard/shared";
-import type { Resolver, ResolveOutcome } from "./resolver";
+import { isUndetermined, type Resolver } from "./resolver";
 
 // Where a Domain receives mail (RFC 5321 §5.1, RFC 7505 Null MX): its MX hosts
 // and their addresses, looked up through the Resolver. Shared by the MX Check
 // and the Blocklist Check (Receiving IPs).
+
+/** Addresses found for some name(s), and whether a failed lookup may have hidden others. */
+export interface AddressLookup {
+  addresses: string[];
+  undetermined: boolean;
+}
 
 /** What `lookupMx` found for a domain. */
 export type MxLookup =
@@ -14,7 +20,7 @@ export type MxLookup =
   /** MX hosts ordered by preference; `undetermined` if any address lookup failed. */
   | { kind: "hosts"; hosts: MxHost[]; undetermined: boolean }
   /** No MX record: the domain's own A/AAAA addresses act as an implicit MX. */
-  | { kind: "implicit"; addresses: string[]; undetermined: boolean };
+  | ({ kind: "implicit" } & AddressLookup);
 
 export async function lookupMx(resolver: Resolver, domain: string): Promise<MxLookup> {
   const mx = await resolver.resolve(domain, "MX");
@@ -35,7 +41,7 @@ export async function lookupMx(resolver: Resolver, domain: string): Promise<MxLo
  * Receiving IPs: the addresses of the MX hosts (or of the domain itself when
  * it has no MX), and whether any lookup failed so the list may be incomplete.
  */
-export function receivingIpsOf(lookup: MxLookup): { addresses: string[]; undetermined: boolean } {
+export function receivingIpsOf(lookup: MxLookup): AddressLookup {
   switch (lookup.kind) {
     case "undetermined":
       return { addresses: [], undetermined: true };
@@ -48,12 +54,8 @@ export function receivingIpsOf(lookup: MxLookup): { addresses: string[]; undeter
   }
 }
 
-function isUndetermined(outcome: ResolveOutcome): boolean {
-  return outcome.kind === "error" || outcome.kind === "timeout";
-}
-
 /** A and AAAA addresses of `name`, and whether any lookup failed to give an answer. */
-async function lookupAddresses(resolver: Resolver, name: string): Promise<{ addresses: string[]; undetermined: boolean }> {
+async function lookupAddresses(resolver: Resolver, name: string): Promise<AddressLookup> {
   const outcomes = await Promise.all([resolver.resolve(name, "A"), resolver.resolve(name, "AAAA")]);
   return {
     addresses: outcomes.flatMap((o) => (o.kind === "answers" ? o.answers : [])),

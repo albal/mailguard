@@ -51,9 +51,9 @@ function runWithTimeout(check: CheckModule, context: CheckContext, timeoutMs: nu
   return withTimeout(
     check
       .run(context)
-      .catch(() => check.inconclusive("This check hit an unexpected error, so MailGuard couldn't determine a result.")),
+      .catch(() => check.report("inconclusive", "This check hit an unexpected error, so MailGuard couldn't determine a result.")),
     timeoutMs,
-    () => check.inconclusive("This check timed out before DNS answered, so MailGuard couldn't determine a result."),
+    () => check.report("inconclusive", "This check timed out before DNS answered, so MailGuard couldn't determine a result."),
   );
 }
 
