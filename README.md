@@ -6,7 +6,7 @@ Scan a Domain for spoofing protection (SPF, DMARC, MX) and Blocklist listings. S
 
 npm workspaces:
 
-- `packages/shared`: the Scan API JSON types, shared by the Worker and the App (types only).
+- `packages/shared`: the Scan API JSON types, shared by the Worker and the App, plus the few constants both must agree on (e.g. `SPF_LOOKUP_LIMIT`).
 - `packages/worker`: the Cloudflare Worker serving `GET /api/scan?domain=…`.
   - `src/resolver.ts`: the Resolver interface (the only way to reach DNS); `src/doh-resolver.ts` is the production implementation (Cloudflare DoH).
   - `src/checks/`: one module per Check; `src/checks/index.ts` is the list of Checks a Scan runs.
@@ -17,7 +17,7 @@ npm workspaces:
 ### Adding a Check
 
 1. Add its type to `packages/shared/src/index.ts` and to the `Check` union.
-2. Worker: add `src/checks/<name>.ts` implementing `CheckModule`, and list it in `src/checks/index.ts`.
+2. Worker: add `src/checks/<name>.ts` implementing `CheckModule` (build its results with `reporter()` from `check-module.ts`), and list it in `src/checks/index.ts`.
 3. App: add a details component in `src/checks/` and an entry in `checkViews`.
 
 ## Development
@@ -53,5 +53,5 @@ npm run typecheck    # tsc for every workspace
 
 Tests only go through two seams:
 
-- **Worker**: `packages/worker/test/` sends real Requests to the fetch handler under `@cloudflare/vitest-plugin` (workerd). DNS is a scripted fake Resolver (`test/fake-resolver.ts`); `test/scan-helpers.ts` has `scan()` / `scanRequest()`.
+- **Worker**: `packages/worker/test/` sends real Requests to the fetch handler under `@cloudflare/vitest-plugin` (workerd). DNS is a scripted fake Resolver (`test/fake-resolver.ts`); `test/scan-helpers.ts` has `scan()` / `scanRequest()`. The suite runs as two vitest projects, one per `wrangler.jsonc` environment: `test/preview/` runs against the `preview` environment's bindings and vars, everything else against production's.
 - **App**: `packages/app/src/App.test.tsx` renders the whole App with React Testing Library (jsdom) and stubs `fetch` for `/api/scan` (`src/test/scan-api-stub.ts`).
