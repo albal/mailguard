@@ -1,0 +1,4 @@
+@import "tailwindcss";
+
+/* Theme is the `dark` class on <html> (PRD §3.2). */
+@custom-variant dark (&:where(.dark, .dark *));
