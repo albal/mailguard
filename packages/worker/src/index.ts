@@ -1,5 +1,5 @@
 import "./env";
-import type { Scan, ScanError } from "@mailguard/shared";
+import type { ScanError, ScanResponse } from "@mailguard/shared";
 import { createDohResolver } from "./doh-resolver";
 import type { Resolver } from "./resolver";
 import { runScan, type ScanDeps } from "./scan";
@@ -23,7 +23,7 @@ export function createHandler(options: Deps): ExportedHandler<Env> {
       }
       const domain = url.searchParams.get("domain");
       if (!domain) return json<ScanError>({ error: "Missing domain" }, 400);
-      return json<Scan>(await runScan(domain, deps));
+      return json<ScanResponse>(await runScan(domain, deps));
     },
   };
 }
