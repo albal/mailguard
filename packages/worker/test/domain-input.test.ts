@@ -35,3 +35,42 @@ describe("A Domain that doesn't exist", () => {
     },
   );
 });
+
+describe("Validating the Domain", () => {
+  it.each([
+    ["an email address", "alice@example.com"],
+    ["a single label", "localhost"],
+    ["an IP address", "192.0.2.1"],
+    ["a space", "exa mple.com"],
+    ["an empty label", "a..b.com"],
+    ["a label starting with a hyphen", "-bad.com"],
+    ["a label ending with a hyphen", "bad-.com"],
+    ["an underscore", "a_b.example.com"],
+    ["Unicode instead of Punycode", "bücher.de"],
+    ["a port", "example.com:80"],
+    ["a path", "example.com/path"],
+    ["a label over 63 characters", `${"a".repeat(64)}.com`],
+    ["a name over 253 characters", `${"a".repeat(63)}.${"b".repeat(63)}.${"c".repeat(63)}.${"d".repeat(61)}.com`],
+    ["-- in positions 3-4 without xn", "ab--cd.com"],
+  ])("rejects %s with a 400 and makes no DNS query", async (_, domain) => {
+    const resolver = fakeResolver({});
+
+    const response = await scanRequest(scanUrl(domain), {}, { resolver });
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: expect.any(String) });
+    expect(resolver.queries).toEqual([]);
+  });
+
+  it.each([
+    ["a Punycode Domain", "xn--bcher-kva.de", "xn--bcher-kva.de"],
+    ["a subdomain", "mail.example.co.uk", "mail.example.co.uk"],
+    ["upper case, normalised to lower case", "Example.COM", "example.com"],
+    ["a trailing dot, which is dropped", "example.com.", "example.com"],
+    ["digits and hyphens", "a-1.example.com", "a-1.example.com"],
+  ])("accepts %s", async (_, domain, normalised) => {
+    const result = await scan(domain, {});
+
+    expect(result.domain).toBe(normalised);
+  });
+});
