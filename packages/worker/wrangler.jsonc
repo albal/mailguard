@@ -1,8 +1,18 @@
 {
   "$schema": "../../node_modules/wrangler/config-schema.json",
-  "name": "mailguard-api",
+  "name": "mailguard",
   "main": "src/index.ts",
   "compatibility_date": "2026-10-01",
+
+  // The App is served from this Worker as static assets, so the page and the
+  // Scan API share one origin. Requests under /api/ reach the Worker; every
+  // other path is served from the App build, falling back to index.html.
+  // Build the App (`npm run build -w packages/app`) before deploying.
+  "assets": {
+    "directory": "../app/dist",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
 
   // Production (top level). Bindings and vars are not inherited by `env`
   // blocks, so each environment below redeclares them.
@@ -10,7 +20,7 @@
   // or route; on *.workers.dev every Scan is a cache miss.
   "ratelimits": [{ "name": "SCAN_LIMITER", "namespace_id": "1001", "simple": { "limit": 10, "period": 60 } }],
   "vars": {
-    "ALLOWED_ORIGINS": "https://mailguard.pages.dev"
+    "ALLOWED_ORIGINS": "https://mailguard.tsew.com"
   },
 
   "env": {

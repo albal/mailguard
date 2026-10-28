@@ -122,17 +122,17 @@ describe("Rate limiting", () => {
 
 // ALLOWED_ORIGINS here is the production value from wrangler.jsonc. The
 // preview environment's is tested in preview/cors.test.ts.
-const PRODUCTION_ORIGIN = "https://mailguard.pages.dev";
+const PRODUCTION_ORIGIN = "https://mailguard.tsew.com";
 
 describe("CORS (production configuration)", () => {
-  it("allows the production Pages origin", async () => {
+  it("allows the production origin", async () => {
     expect(await allowOriginFor(PRODUCTION_ORIGIN, { domain: "cors-prod.test" })).toBe(PRODUCTION_ORIGIN);
   });
 
-  it("sends no allow header to any other origin, including Pages branch previews", async () => {
+  it("sends no allow header to any other origin, including other subdomains", async () => {
     expect(await allowOriginFor("https://evil.example", { domain: "cors-deny.test" })).toBeNull();
-    expect(await allowOriginFor("https://feature-x.mailguard.pages.dev", { domain: "cors-deny.test" })).toBeNull();
-    expect(await allowOriginFor("http://mailguard.pages.dev", { domain: "cors-deny.test" })).toBeNull();
+    expect(await allowOriginFor("https://feature-x.mailguard.tsew.com", { domain: "cors-deny.test" })).toBeNull();
+    expect(await allowOriginFor("http://mailguard.tsew.com", { domain: "cors-deny.test" })).toBeNull();
   });
 
   it("allows the caller's origin on cached Scans and on 429s, so the App can read them", async () => {

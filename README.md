@@ -44,6 +44,15 @@ Spamhaus ZEN and DBL are queried through DQS (ADR-0002), which needs a free DQS 
 
 Tests never use a real key: `test/scan-helpers.ts` sets a dummy one.
 
+## Deploy
+
+One Worker (`mailguard`) serves both the App, as static assets from `packages/app/dist`, and the Scan API under `/api/` (see `assets` in `packages/worker/wrangler.jsonc`). Cloudflare Workers Builds settings, with the root directory at the repo root:
+
+- **Build command:** `npm ci && npm run build -w packages/app`
+- **Deploy command:** `npx wrangler deploy -c packages/worker/wrangler.jsonc`
+- **Runtime secret:** `SPAMHAUS_DQS_KEY` (Worker → Settings → Variables and Secrets, not the build variables)
+- **Custom domain:** required, because the Cache API is a no-op on `*.workers.dev`.
+
 ## Tests
 
 ```sh
