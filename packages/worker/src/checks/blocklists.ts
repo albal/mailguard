@@ -15,12 +15,11 @@ export const blocklistCheck: CheckModule<"blocklists"> = {
 
   async run(context): Promise<BlocklistCheck> {
     const { resolver, dqsKey } = context;
-    const consulted = blocklists.filter((b) => !b.dqs || dqsKey);
     const { targets, undetermined } = await targetsOf(context);
 
     const lookups = await Promise.all(
       targets.flatMap(({ target, roles }) =>
-        consulted
+        blocklists
           .filter((b) => (b.lists === "domain") === roles.includes("domain"))
           .map(async (blocklist): Promise<BlocklistLookup> => ({
             blocklist: blocklist.name,
@@ -31,7 +30,7 @@ export const blocklistCheck: CheckModule<"blocklists"> = {
       ),
     );
     const applicable = lookups.filter((l) => l.outcome !== "not-applicable");
-    const names = consulted.map((b) => b.name).filter((name) => applicable.some((l) => l.blocklist === name));
+    const names = blocklists.map((b) => b.name).filter((name) => applicable.some((l) => l.blocklist === name));
     const listings = applicable.filter((l) => l.outcome === "listed").length;
     const details = { blocklists: names, lookups };
 
@@ -98,6 +97,9 @@ async function targetsOf({ domain, resolver }: CheckContext): Promise<{ targets:
 
 async function outcomeOf(resolver: Resolver, blocklist: Blocklist, target: string, dqsKey?: string): Promise<BlocklistOutcome> {
   if (blocklist.lists === "ip" && isIpv6(target) && !blocklist.ipv6) return "not-applicable";
+  // Without a key a DQS Blocklist can't be asked. Leaving it out would let a
+  // misconfigured deployment report a better Verdict than it knows.
+  if (blocklist.dqs && !dqsKey) return "inconclusive";
   const answer = await resolver.resolve(queryNameOf(blocklist, target, dqsKey), "A");
   if (answer.kind === "nxdomain") return "not-listed";
   if (answer.kind !== "answers") return "inconclusive";

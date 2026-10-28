@@ -16,7 +16,7 @@ export interface Blocklist {
   ipv6: boolean;
   /**
    * Queried through Spamhaus DQS with the key from the `SPAMHAUS_DQS_KEY`
-   * Worker secret. Without a key the Blocklist is not consulted.
+   * Worker secret. Without a key every lookup on it is Inconclusive.
    */
   dqs: boolean;
   /** A-record answers that mean the target is listed. */
@@ -59,6 +59,31 @@ export const blocklists: Blocklist[] = [
     listedCodes: ["127.0.0.2", "127.0.0.10", "127.0.0.11", "127.0.0.12"],
     // .13 L2 suspicious through .20 H5 excellent: reputation scores, not listings.
     notListedCodes: ["127.0.0.13", "127.0.0.14", "127.0.0.15", "127.0.0.16", "127.0.0.17", "127.0.0.18", "127.0.0.19", "127.0.0.20"],
+  },
+  {
+    // The public `zen.spamhaus.org` refuses Cloudflare's resolver (ADR-0002).
+    name: "Spamhaus ZEN",
+    zone: "zen.dq.spamhaus.net",
+    lists: "ip",
+    ipv6: true,
+    dqs: true,
+    // .2 SBL, .3 SBL CSS, .4–.7 XBL, .9 DROP, .10–.11 PBL. 127.255.255.x
+    // (errors) is in neither list: Inconclusive.
+    listedCodes: ["127.0.0.2", "127.0.0.3", "127.0.0.4", "127.0.0.5", "127.0.0.6", "127.0.0.7", "127.0.0.9", "127.0.0.10", "127.0.0.11"],
+    notListedCodes: [],
+  },
+  {
+    // The public `dbl.spamhaus.org` refuses Cloudflare's resolver (ADR-0002).
+    name: "Spamhaus DBL",
+    zone: "dbl.dq.spamhaus.net",
+    lists: "domain",
+    ipv6: false,
+    dqs: true,
+    // .2 spam, .4 phish, .5 malware, .6 botnet C&C; .102–.106 the same for
+    // abused legitimate domains. .255 (IP queried) and 127.255.255.x (errors)
+    // are in neither list: Inconclusive.
+    listedCodes: ["127.0.1.2", "127.0.1.4", "127.0.1.5", "127.0.1.6", "127.0.1.102", "127.0.1.103", "127.0.1.104", "127.0.1.105", "127.0.1.106"],
+    notListedCodes: [],
   },
 ];
 

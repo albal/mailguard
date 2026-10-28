@@ -5,7 +5,7 @@ import type { Resolver } from "../resolver";
 export interface CheckContext {
   domain: string;
   resolver: Resolver;
-  /** Spamhaus DQS key (Worker secret); Blocklists queried through DQS are skipped without one. */
+  /** Spamhaus DQS key (Worker secret); without one, DQS Blocklist lookups are Inconclusive. */
   dqsKey?: string;
 }
 

@@ -7,6 +7,12 @@ import { fakeResolver, type DnsScript } from "./fake-resolver";
 export const SCAN_TIME = Date.UTC(2026, 9, 28, 12, 0, 0);
 
 /**
+ * The Spamhaus DQS key every test Scan runs with unless its `env` override
+ * says otherwise (e.g. `{ SPAMHAUS_DQS_KEY: undefined }`). Not a real key.
+ */
+export const TEST_DQS_KEY = "testdqskey0000000000000000";
+
+/**
  * A cache that never hits, so tests scanning the same Domain don't see each
  * other's results. Edge-cache tests pass `cache: caches.default` instead.
  */
@@ -39,7 +45,7 @@ export async function scanRequest(
   const ctx = createExecutionContext();
   const response = await handler.fetch!(
     new Request(url, { headers }) as Request<unknown, IncomingRequestCfProperties>,
-    { ...env, ...envOverrides } as Env,
+    { ...env, SPAMHAUS_DQS_KEY: TEST_DQS_KEY, ...envOverrides } as Env,
     ctx,
   );
   await waitOnExecutionContext(ctx);
@@ -47,11 +53,17 @@ export async function scanRequest(
 }
 
 /** Scans `domain` and returns the parsed Scan, asserting a 200. */
-export async function scan(domain: string, script: DnsScript, deps: Partial<Deps> = {}): Promise<Scan> {
+export async function scan(
+  domain: string,
+  script: DnsScript,
+  deps: Partial<Deps> = {},
+  options: { env?: Partial<Env> } = {},
+): Promise<Scan> {
   const response = await scanRequest(
     `https://api.mailguard.test/api/scan?domain=${encodeURIComponent(domain)}`,
     script,
     deps,
+    options,
   );
   if (response.status !== 200) throw new Error(`expected 200, got ${response.status}: ${await response.text()}`);
   return response.json<Scan>();

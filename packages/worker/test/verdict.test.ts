@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { CheckResult } from "@mailguard/shared";
 import type { RecordType } from "../src/resolver";
 import type { DnsScript, ScriptedAnswer } from "./fake-resolver";
-import { checkOf, scan } from "./scan-helpers";
+import { checkOf, scan, TEST_DQS_KEY } from "./scan-helpers";
 
 // The Verdict is the worst Check Result across the Scan (PRD §2.3).
 // Each row drives the Scan's Checks to the given results through DNS alone.
@@ -24,9 +24,16 @@ const spfRecords: Record<Result, Records> = {
   inconclusive: { TXT: "error" },
 };
 
+/** Spamhaus has neither the Domain nor its Receiving IP 192.0.2.1 listed. */
+const spamhausUnlisted: DnsScript = {
+  [`example.com.${TEST_DQS_KEY}.dbl.dq.spamhaus.net`]: "nxdomain",
+  [`1.2.0.192.${TEST_DQS_KEY}.zen.dq.spamhaus.net`]: "nxdomain",
+};
+
 /** DNS for example.com whose MX and SPF Checks get the given results (DMARC passes). */
 function dns(mx: Result, spf: Result): DnsScript {
   return {
+    ...spamhausUnlisted,
     "example.com": { ...mxRecords[mx], ...spfRecords[spf] },
     "mx.example.com": { A: ["192.0.2.1"] },
     "_dmarc.example.com": { TXT: ["v=DMARC1; p=reject"] },

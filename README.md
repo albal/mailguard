@@ -30,6 +30,20 @@ npm run dev:worker   # Worker on http://localhost:8787 (wrangler dev)
 npm run dev:app      # App on http://localhost:5173, proxies /api to the Worker
 ```
 
+### Spamhaus DQS key (`SPAMHAUS_DQS_KEY`)
+
+Spamhaus ZEN and DBL are queried through DQS (ADR-0002), which needs a free DQS query key from Spamhaus. The key is a Worker secret: it stays in the Worker and never appears in a Scan response or in this repo. Without it, every Spamhaus lookup is Inconclusive, so no Scan can reach a Verdict better than Incomplete.
+
+- Local development: put it in `packages/worker/.dev.vars` (git-ignored), which `wrangler dev` reads:
+
+  ```sh
+  echo 'SPAMHAUS_DQS_KEY=<your-key>' > packages/worker/.dev.vars
+  ```
+
+- Production: `cd packages/worker && npx wrangler secret put SPAMHAUS_DQS_KEY` (add `--env preview` for the preview Worker).
+
+Tests never use a real key: `test/scan-helpers.ts` sets a dummy one.
+
 ## Tests
 
 ```sh

@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { fakeResolver, type DnsScript } from "./fake-resolver";
-import { checkOf, scan } from "./scan-helpers";
+import { checkOf, scan, TEST_DQS_KEY } from "./scan-helpers";
 
-const ZONES = ["bl.spamcop.net", "psbl.surriel.com", "bl.mailspike.net"];
+const ZEN = `${TEST_DQS_KEY}.zen.dq.spamhaus.net`;
+const IPV4_ONLY_ZONES = ["bl.spamcop.net", "psbl.surriel.com", "bl.mailspike.net"];
+const ZONES = [...IPV4_ONLY_ZONES, ZEN];
 
 /** NXDOMAIN on every Blocklist for an IPv4 `ip`: not listed anywhere. */
 function unlisted(ip: string): DnsScript {
@@ -17,15 +19,17 @@ describe("Blocklist Check: Sending IPs", () => {
       "1.2.0.192.bl.spamcop.net": { A: ["127.0.0.2"] },
       "1.2.0.192.psbl.surriel.com": "nxdomain",
       "1.2.0.192.bl.mailspike.net": "nxdomain",
+      [`1.2.0.192.${ZEN}`]: "nxdomain",
     });
 
     const blocklists = checkOf(result, "blocklists");
     expect(blocklists.result).toBe("fail");
-    expect(blocklists.blocklists).toEqual(["SpamCop", "PSBL", "Mailspike"]);
-    expect(blocklists.lookups).toEqual([
+    expect(blocklists.blocklists).toEqual(["SpamCop", "PSBL", "Mailspike", "Spamhaus ZEN", "Spamhaus DBL"]);
+    expect(blocklists.lookups.filter((l) => l.target !== "example.com")).toEqual([
       { blocklist: "SpamCop", target: "192.0.2.1", roles: ["sending"], outcome: "listed" },
       { blocklist: "PSBL", target: "192.0.2.1", roles: ["sending"], outcome: "not-listed" },
       { blocklist: "Mailspike", target: "192.0.2.1", roles: ["sending"], outcome: "not-listed" },
+      { blocklist: "Spamhaus ZEN", target: "192.0.2.1", roles: ["sending"], outcome: "not-listed" },
     ]);
     expect(blocklists.explanation).toMatch(/\S/);
   });
@@ -42,8 +46,9 @@ describe("Blocklist Check: Sending IPs", () => {
     });
 
     const blocklists = checkOf(result, "blocklists");
-    expect([...new Set(blocklists.lookups.map((l) => l.target))]).toEqual(["192.0.2.1", "192.0.2.2", "2001:db8::1"]);
-    expect(blocklists.lookups.every((l) => l.roles.join() === "sending")).toBe(true);
+    const ipLookups = blocklists.lookups.filter((l) => l.target !== "example.com");
+    expect([...new Set(ipLookups.map((l) => l.target))]).toEqual(["192.0.2.1", "192.0.2.2", "2001:db8::1"]);
+    expect(ipLookups.every((l) => l.roles.join() === "sending")).toBe(true);
   });
 
   it("is Inconclusive when the SPF lookup fails, since Sending IPs may be missing", async () => {
@@ -78,6 +83,7 @@ describe("Blocklist Check: Receiving IPs", () => {
       "not-listed",
       "not-listed",
       "not-listed",
+      "not-listed",
     ]);
   });
 
@@ -91,7 +97,8 @@ describe("Blocklist Check: Receiving IPs", () => {
       "blocklists",
     );
 
-    expect(blocklists.lookups.map((l) => [l.target, l.roles])).toEqual([
+    expect(blocklists.lookups.filter((l) => l.target !== "example.com").map((l) => [l.target, l.roles])).toEqual([
+      ["192.0.2.1", ["sending", "receiving"]],
       ["192.0.2.1", ["sending", "receiving"]],
       ["192.0.2.1", ["sending", "receiving"]],
       ["192.0.2.1", ["sending", "receiving"]],
@@ -116,8 +123,8 @@ describe("Blocklist Check: outcomes", () => {
     );
 
     expect(blocklists.result).toBe("pass");
-    expect(blocklists.blocklists).toEqual(["SpamCop", "PSBL", "Mailspike"]);
-    expect(blocklists.explanation).toMatch(/3 Blocklists/);
+    expect(blocklists.blocklists).toEqual(["SpamCop", "PSBL", "Mailspike", "Spamhaus ZEN", "Spamhaus DBL"]);
+    expect(blocklists.explanation).toMatch(/5 Blocklists/);
   });
 
   it("treats a refused or unexpected answer code as Inconclusive, not as a listing", async () => {
@@ -184,17 +191,19 @@ describe("Blocklist Check: outcomes", () => {
     const resolver = fakeResolver({
       "example.com": { MX: ["10 mx.example.com"] },
       "mx.example.com": { AAAA: ["2001:db8::25"] },
+      [`5.2.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.8.b.d.0.1.0.0.2.${ZEN}`]: "nxdomain",
     });
     const blocklists = checkOf(await scan("example.com", {}, { resolver }), "blocklists");
 
-    expect(blocklists.lookups).toEqual([
+    expect(blocklists.lookups.filter((l) => l.target !== "example.com")).toEqual([
       { blocklist: "SpamCop", target: "2001:db8::25", roles: ["receiving"], outcome: "not-applicable" },
       { blocklist: "PSBL", target: "2001:db8::25", roles: ["receiving"], outcome: "not-applicable" },
       { blocklist: "Mailspike", target: "2001:db8::25", roles: ["receiving"], outcome: "not-applicable" },
+      { blocklist: "Spamhaus ZEN", target: "2001:db8::25", roles: ["receiving"], outcome: "not-listed" },
     ]);
     expect(blocklists.result).toBe("pass");
-    expect(blocklists.blocklists).toEqual([]);
-    expect(resolver.queries.filter((q) => ZONES.some((zone) => q.includes(zone)))).toEqual([]);
+    expect(blocklists.blocklists).toEqual(["Spamhaus ZEN", "Spamhaus DBL"]);
+    expect(resolver.queries.filter((q) => IPV4_ONLY_ZONES.some((zone) => q.includes(zone)))).toEqual([]);
   });
 
   it("never queries a Spamhaus public zone (ADR-0002)", async () => {
