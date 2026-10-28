@@ -7,6 +7,17 @@ export interface CheckContext {
   resolver: Resolver;
   /** Spamhaus DQS key (Worker secret); without one, DQS Blocklist lookups are Inconclusive. */
   dqsKey?: string;
+  /**
+   * Settles when the Check's time is up. A Check that can report partial
+   * results stops waiting then and returns them at once (see
+   * `beforeDeadline`); otherwise the orchestrator reports it as Inconclusive.
+   */
+  deadline: Promise<void>;
+}
+
+/** `work`'s result, or `onDeadline()` if `deadline` settles first. */
+export function beforeDeadline<T>(work: Promise<T>, deadline: Promise<void>, onDeadline: () => T): Promise<T> {
+  return Promise.race([work, deadline.then(onDeadline)]);
 }
 
 /** The Check of kind `K` as it appears in a Scan. */

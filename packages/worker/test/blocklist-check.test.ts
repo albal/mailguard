@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { fakeResolver, type DnsScript } from "./fake-resolver";
+import type { Resolver } from "../src/resolver";
 import { checkOf, scan, TEST_DQS_KEY } from "./scan-helpers";
 
 const ZEN = `${TEST_DQS_KEY}.zen.dq.spamhaus.net`;
@@ -242,3 +243,90 @@ describe("Blocklist Check: outcomes", () => {
     expect(resolver.queries).toContain("10.2.0.192.bl.spamcop.net A");
   });
 });
+
+describe("Blocklist Check: timeout", () => {
+  it("keeps the lookups that finished when the Check times out: a listing still Fails, unfinished lookups are Inconclusive", async () => {
+    const blocklists = checkOf(
+      await scan(
+        "example.com",
+        {
+          "example.com": { MX: ["0 ."], TXT: ["v=spf1 ip4:192.0.2.1 -all"] },
+          ...unlisted("192.0.2.1"),
+          "1.2.0.192.bl.spamcop.net": { A: ["127.0.0.2"] },
+          "1.2.0.192.psbl.surriel.com": { A: "hang" },
+        },
+        { checkTimeoutMs: 50 },
+      ),
+      "blocklists",
+    );
+
+    expect(blocklists.result).toBe("fail");
+    expect(blocklists.lookups.filter((l) => l.subject === "192.0.2.1")).toEqual([
+      { blocklist: "SpamCop", subject: "192.0.2.1", roles: ["sending"], outcome: "listed" },
+      { blocklist: "PSBL", subject: "192.0.2.1", roles: ["sending"], outcome: "inconclusive" },
+      { blocklist: "Mailspike", subject: "192.0.2.1", roles: ["sending"], outcome: "not-listed" },
+      { blocklist: "Spamhaus ZEN", subject: "192.0.2.1", roles: ["sending"], outcome: "not-listed" },
+    ]);
+  });
+
+  it("keeps a Domain listing found while finding the IPs timed out", async () => {
+    const blocklists = checkOf(
+      await scan(
+        "example.com",
+        {
+          "example.com": { MX: ["0 ."], TXT: "hang" },
+          [`example.com.${TEST_DQS_KEY}.dbl.dq.spamhaus.net`]: { A: ["127.0.1.2"] },
+        },
+        { checkTimeoutMs: 50 },
+      ),
+      "blocklists",
+    );
+
+    expect(blocklists.result).toBe("fail");
+    expect(blocklists.lookups).toEqual([
+      { blocklist: "Spamhaus DBL", subject: "example.com", roles: ["domain"], outcome: "listed" },
+    ]);
+  });
+
+  it("is Inconclusive, keeping what finished, when it times out with no listing found", async () => {
+    const blocklists = checkOf(
+      await scan(
+        "example.com",
+        {
+          "example.com": { MX: ["0 ."], TXT: ["v=spf1 ip4:192.0.2.1 -all"] },
+          ...unlisted("192.0.2.1"),
+          "1.2.0.192.psbl.surriel.com": { A: "hang" },
+        },
+        { checkTimeoutMs: 50 },
+      ),
+      "blocklists",
+    );
+
+    expect(blocklists.result).toBe("inconclusive");
+    expect(blocklists.explanation).toMatch(/timed out/);
+    expect(blocklists.lookups.find((l) => l.blocklist === "SpamCop")?.outcome).toBe("not-listed");
+    expect(blocklists.lookups.find((l) => l.blocklist === "PSBL")?.outcome).toBe("inconclusive");
+  });
+
+  it("looks up every subject on every Blocklist at once, so slow DNS still fits the budget", async () => {
+    const fake = fakeResolver({
+      "example.com": { MX: ["10 mx.example.com"], TXT: ["v=spf1 ip4:192.0.2.1 ip4:192.0.2.2 -all"] },
+      "mx.example.com": { A: ["192.0.2.10"] },
+      ...unlisted("192.0.2.1"),
+      ...unlisted("192.0.2.2"),
+      ...unlisted("192.0.2.10"),
+      [`example.com.${TEST_DQS_KEY}.dbl.dq.spamhaus.net`]: "nxdomain",
+    });
+    // Every query takes 60 ms: the 13 Blocklist lookups one after another would take ~800 ms.
+    const resolver: Resolver = { resolve: (name, type) => delay(60).then(() => fake.resolve(name, type)) };
+
+    const blocklists = checkOf(await scan("example.com", {}, { resolver, checkTimeoutMs: 400 }), "blocklists");
+
+    expect(blocklists.result).toBe("pass");
+    expect(blocklists.lookups).toHaveLength(13);
+  });
+});
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}

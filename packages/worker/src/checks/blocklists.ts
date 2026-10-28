@@ -2,9 +2,8 @@ import type { BlocklistCheck, BlocklistLookup, BlocklistOutcome, BlocklistSubjec
 import { blocklists, queryNameOf, type Blocklist } from "../blocklists";
 import { isIpv6 } from "../ip-address";
 import { lookupMx, receivingIpsOf } from "../mx";
-import type { Resolver } from "../resolver";
 import { lookupSpfRecord, sendingIpsOf } from "../spf";
-import { reporter, type CheckContext, type CheckModule } from "./check-module";
+import { beforeDeadline, reporter, type CheckContext, type CheckModule } from "./check-module";
 
 // PRD §2.2 (Blocklists): the Domain, its Sending IPs and its Receiving IPs,
 // looked up on every configured Blocklist. Any listing is a Fail.
@@ -18,21 +17,14 @@ export const blocklistCheck: CheckModule<"blocklists"> = {
   report,
 
   async run(context): Promise<BlocklistCheck> {
-    const { resolver, dqsKey } = context;
-    const { subjects, undetermined } = await subjectsOf(context);
+    const { domain, deadline } = context;
+    // The Domain needs no discovery, so its lookups start straight away.
+    const domainLookups = lookupsOf({ subject: domain, roles: ["domain"] }, context);
+    const ips = await beforeDeadline(ipSubjectsOf(context), deadline, () => ({ subjects: [], undetermined: true }));
+    const ipLookups = ips.subjects.flatMap((subject) => lookupsOf(subject, context));
+    const lookups = await Promise.all([...domainLookups, ...ipLookups]);
+    const { undetermined } = ips;
 
-    const lookups = await Promise.all(
-      subjects.flatMap(({ subject, roles }) =>
-        blocklists
-          .filter((b) => (b.lists === "domain") === roles.includes("domain"))
-          .map(async (blocklist): Promise<BlocklistLookup> => ({
-            blocklist: blocklist.name,
-            subject,
-            roles,
-            outcome: await outcomeOf(resolver, blocklist, subject, dqsKey),
-          })),
-      ),
-    );
     const applicable = lookups.filter((l) => l.outcome !== "not-applicable");
     const names = blocklists.map((b) => b.name).filter((name) => applicable.some((l) => l.blocklist === name));
     const listings = applicable.filter((l) => l.outcome === "listed").length;
@@ -72,11 +64,30 @@ interface Subject {
 }
 
 /**
- * The Domain, its Sending IPs (single `ip4:`/`ip6:` addresses in SPF) and its
+ * Every Blocklist lookup of `subject`, all started at once. A lookup still
+ * running at the deadline is Inconclusive; the others keep their outcome.
+ */
+function lookupsOf({ subject, roles }: Subject, context: CheckContext): Promise<BlocklistLookup>[] {
+  return blocklists
+    .filter((b) => (b.lists === "domain") === roles.includes("domain"))
+    .map(async (blocklist): Promise<BlocklistLookup> => ({
+      blocklist: blocklist.name,
+      subject,
+      roles,
+      outcome: await beforeDeadline(
+        outcomeOf(blocklist, subject, context).catch((): BlocklistOutcome => "inconclusive"),
+        context.deadline,
+        () => "inconclusive",
+      ),
+    }));
+}
+
+/**
+ * The Domain's Sending IPs (single `ip4:`/`ip6:` addresses in SPF) and
  * Receiving IPs (MX host addresses), each IP once with all its roles.
  * `undetermined` when a DNS failure may have hidden some IPs.
  */
-async function subjectsOf({ domain, resolver }: CheckContext): Promise<{ subjects: Subject[]; undetermined: boolean }> {
+async function ipSubjectsOf({ domain, resolver }: CheckContext): Promise<{ subjects: Subject[]; undetermined: boolean }> {
   const [spf, mx] = await Promise.all([lookupSpfRecord(resolver, domain), lookupMx(resolver, domain)]);
   const sending = spf.kind === "record" ? sendingIpsOf(spf.record) : [];
   const receiving = receivingIpsOf(mx);
@@ -90,12 +101,12 @@ async function subjectsOf({ domain, resolver }: CheckContext): Promise<{ subject
   receiving.addresses.forEach((ip) => add(ip, "receiving"));
 
   return {
-    subjects: [{ subject: domain, roles: ["domain"] }, ...[...roles].map(([subject, r]) => ({ subject, roles: r }))],
+    subjects: [...roles].map(([subject, r]) => ({ subject, roles: r })),
     undetermined: spf.kind === "undetermined" || receiving.undetermined,
   };
 }
 
-async function outcomeOf(resolver: Resolver, blocklist: Blocklist, subject: string, dqsKey?: string): Promise<BlocklistOutcome> {
+async function outcomeOf(blocklist: Blocklist, subject: string, { resolver, dqsKey }: CheckContext): Promise<BlocklistOutcome> {
   if (blocklist.lists === "ip" && isIpv6(subject) && !blocklist.ipv6) return "not-applicable";
   // Without a key a DQS Blocklist can't be asked. Leaving it out would let a
   // misconfigured deployment report a better Verdict than it knows.

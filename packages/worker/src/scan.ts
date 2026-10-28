@@ -20,6 +20,12 @@ export interface ScanDeps {
 const EXISTENCE_TIMEOUT_MS = 500;
 
 /**
+ * After a Check's deadline, how long it has to hand back partial results
+ * before the orchestrator reports it as Inconclusive.
+ */
+const PARTIAL_RESULTS_GRACE_MS = 10;
+
+/**
  * Checks the Domain exists, then runs every Check concurrently, each under its
  * own timeout, and works out the Verdict. A Domain that doesn't exist gets no
  * Checks and no Verdict.
@@ -30,7 +36,7 @@ export async function runScan(domain: string, deps: ScanDeps): Promise<ScanRespo
   if ((await existenceOf(domain, deps)).kind === "nxdomain") return { domain, scannedAt, exists: false };
 
   const remainingMs = Math.max(0, deps.checkTimeoutMs - (Date.now() - started));
-  const context: CheckContext = { domain, resolver: deps.resolver, dqsKey: deps.dqsKey };
+  const context = { domain, resolver: deps.resolver, dqsKey: deps.dqsKey };
   const results = await Promise.all(checks.map((check) => runWithTimeout(check, context, remainingMs)));
   return { domain, scannedAt, verdict: verdictOf(results), checks: results };
 }
@@ -47,14 +53,30 @@ function existenceOf(domain: string, deps: ScanDeps): Promise<ResolveOutcome> {
   );
 }
 
-function runWithTimeout(check: CheckModule, context: CheckContext, timeoutMs: number): Promise<Check> {
-  return withTimeout(
-    check
-      .run(context)
-      .catch(() => check.report("inconclusive", "This check hit an unexpected error, so MailGuard couldn't determine a result.")),
-    timeoutMs,
-    () => check.report("inconclusive", "This check timed out before DNS answered, so MailGuard couldn't determine a result."),
-  );
+/**
+ * Runs `check`, whose deadline comes after `timeoutMs`. A Check that hasn't
+ * returned shortly after that is Inconclusive.
+ */
+async function runWithTimeout(
+  check: CheckModule,
+  context: Omit<CheckContext, "deadline">,
+  timeoutMs: number,
+): Promise<Check> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<void>((resolve) => {
+    timer = setTimeout(resolve, timeoutMs);
+  });
+  try {
+    return await withTimeout(
+      check
+        .run({ ...context, deadline })
+        .catch(() => check.report("inconclusive", "This check hit an unexpected error, so MailGuard couldn't determine a result.")),
+      timeoutMs + PARTIAL_RESULTS_GRACE_MS,
+      () => check.report("inconclusive", "This check timed out before DNS answered, so MailGuard couldn't determine a result."),
+    );
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 async function withTimeout<T>(work: Promise<T>, timeoutMs: number, onTimeout: () => T): Promise<T> {
