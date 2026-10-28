@@ -67,3 +67,17 @@ export interface Scan {
 export interface ScanError {
   error: string;
 }
+
+/**
+ * The 200 body of `GET /api/scan` when the Domain doesn't exist (NXDOMAIN).
+ * No Checks run and there is no Verdict.
+ */
+export interface NonexistentDomain {
+  domain: string;
+  /** ISO-8601 time the existence check was performed. */
+  scannedAt: string;
+  exists: false;
+}
+
+/** Every 200 body of `GET /api/scan`. Tell them apart with `"exists" in body`. */
+export type ScanResponse = Scan | NonexistentDomain;
