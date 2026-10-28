@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* Theme is the `dark` class on <html> (PRD §3.2). */
+/* Theme is the `dark` class on <html> (PRD §4.2). */
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
@@ -8,13 +8,14 @@
  * Use these semantic colours rather than raw Tailwind reds/greys so both
  * themes meet WCAG AA:
  *   bg-accent / border-accent   solid red fills (Scan button, Fail) - white text on it is 4.8:1
+ *   bg-accent-hover             the Scan button on hover: the palette's other red, #E60000 (white 4.8:1)
  *   text-accent-text            red text or outlines on the page background
  *                               (#DC2626 is only 4.3:1 on black, so dark mode lightens it)
  *   text-muted / border-muted   secondary grey text
  */
 @theme {
   --color-accent: #dc2626;
-  --color-accent-hover: #b91c1c;
+  --color-accent-hover: #e60000;
   --color-accent-text: #dc2626;
   --color-muted: #4b5563;
   --color-page: #ffffff;
