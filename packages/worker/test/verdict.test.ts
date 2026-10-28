@@ -1,26 +1,33 @@
 import { describe, expect, it } from "vitest";
-import type { DnsScript } from "./fake-resolver";
+import type { CheckResult } from "@mailguard/shared";
+import type { RecordType } from "../src/resolver";
+import type { DnsScript, ScriptedAnswer } from "./fake-resolver";
 import { checkOf, scan } from "./scan-helpers";
 
 // The Verdict is the worst Check Result across the Scan (PRD §2.3).
 // Each row drives the Scan's Checks to the given results through DNS alone.
 
-/** DNS for example.com with an MX of the given result and an SPF record of the given result. */
-function dns(mx: "pass" | "warning" | "fail" | "inconclusive", spf: "pass" | "warning" | "fail" | "inconclusive"): DnsScript {
-  const mxRecords = {
-    pass: { MX: ["10 mx.example.com"] },
-    warning: { A: ["192.0.2.1"] },
-    fail: {},
-    inconclusive: { MX: "timeout" },
-  } as const satisfies DnsScript[string];
-  const spfRecords = {
-    pass: { TXT: ["v=spf1 mx -all"] },
-    warning: { TXT: ["v=spf1 mx ?all"] },
-    fail: { TXT: ["v=spf1 +all"] },
-    inconclusive: { TXT: "error" },
-  } as const satisfies DnsScript[string];
+type Result = CheckResult;
+type Records = Partial<Record<RecordType, ScriptedAnswer>>;
+
+const mxRecords: Record<Result, Records> = {
+  pass: { MX: ["10 mx.example.com"] },
+  warning: { A: ["192.0.2.1"] },
+  fail: {},
+  inconclusive: { MX: "timeout" },
+};
+
+const spfRecords: Record<Result, Records> = {
+  pass: { TXT: ["v=spf1 mx -all"] },
+  warning: { TXT: ["v=spf1 mx ?all"] },
+  fail: { TXT: ["v=spf1 +all"] },
+  inconclusive: { TXT: "error" },
+};
+
+/** DNS for example.com whose MX and SPF Checks get the given results. */
+function dns(mx: Result, spf: Result): DnsScript {
   return {
-    "example.com": { ...mxRecords[mx], ...spfRecords[spf] } as DnsScript[string],
+    "example.com": { ...mxRecords[mx], ...spfRecords[spf] },
     "mx.example.com": { A: ["192.0.2.1"] },
   };
 }
