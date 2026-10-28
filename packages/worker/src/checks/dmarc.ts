@@ -14,7 +14,7 @@ export const dmarcCheck: CheckModule<"dmarc"> = {
       return report("inconclusive", "A DNS lookup needed to find this domain's DMARC policy failed or timed out, so MailGuard couldn't tell whether it has one.");
     }
     if (discovery.kind === "none") {
-      return report("fail", "No DMARC record was found for this domain or any parent domain, so receiving servers aren't told to act on mail that fails SPF and DKIM. Anyone can spoof it without consequence.");
+      return report("fail", "No DMARC record was found for this domain or its Organizational Domain, so receiving servers aren't told to act on mail that fails SPF and DKIM. Anyone can spoof it without consequence.");
     }
 
     const { policyDomain, policySource, record } = discovery;

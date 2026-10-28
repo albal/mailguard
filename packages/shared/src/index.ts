@@ -31,8 +31,8 @@ export interface MxCheck extends CheckBase<"mx"> {
   implicitMxAddresses: string[];
 }
 
-/** The qualifier on an SPF record's `all` mechanism. */
-export type SpfAllQualifier = "+" | "-" | "~" | "?";
+/** An SPF mechanism's qualifier (RFC 7208 §4.6.2), e.g. on `all`. */
+export type SpfQualifier = "+" | "-" | "~" | "?";
 
 export interface SpfCheck extends CheckBase<"spf"> {
   /** Every SPF record (`v=spf1 …`) published at the Domain: normally exactly one. */
@@ -40,7 +40,7 @@ export interface SpfCheck extends CheckBase<"spf"> {
   /** DNS lookups the record needs, counting nested `include:`/`redirect=`; null if not counted. */
   lookupCount: number | null;
   /** Qualifier of the effective `all` (following `redirect=`), or null when there is none. */
-  allQualifier: SpfAllQualifier | null;
+  allQualifier: SpfQualifier | null;
   /** Sending IPs: the single-address `ip4:`/`ip6:` entries of the Domain's own record. */
   sendingIps: string[];
 }

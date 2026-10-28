@@ -1,4 +1,4 @@
-import type { SpfAllQualifier } from "@mailguard/shared";
+import type { SpfQualifier } from "@mailguard/shared";
 import type { Resolver } from "./resolver";
 
 // SPF records (RFC 7208 §4.5–§6, §7 macros, §12 ABNF): finding a domain's
@@ -27,8 +27,6 @@ export async function lookupSpfRecord(resolver: Resolver, domain: string): Promi
     ? { kind: "record", text: texts[0], record: parsed.record }
     : { kind: "invalid", text: texts[0], error: parsed.error };
 }
-
-export type SpfQualifier = SpfAllQualifier;
 
 export type SpfMechanism =
   | { type: "all"; qualifier: SpfQualifier }

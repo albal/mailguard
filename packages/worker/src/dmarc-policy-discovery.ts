@@ -27,7 +27,7 @@ export async function discoverDmarcPolicy(resolver: Resolver, domain: string): P
   if (own === "undetermined") return { kind: "undetermined" };
   if (own !== null) return { kind: "found", policyDomain: domain, policySource: "domain", record: own };
 
-  // The DNS Tree Walk, from the parent of the Domain (or its 7-label suffix).
+  // The DNS Tree Walk, from the Domain minus its leftmost label (or its 7-label suffix).
   const found: { name: string; record: string; psd: string }[] = [];
   let labels = domain.split(".");
   labels = labels.length >= MAX_QUERIES ? labels.slice(-(MAX_QUERIES - 1)) : labels.slice(1);

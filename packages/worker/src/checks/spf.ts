@@ -1,4 +1,4 @@
-import type { CheckResult, SpfAllQualifier, SpfCheck } from "@mailguard/shared";
+import type { CheckResult, SpfQualifier, SpfCheck } from "@mailguard/shared";
 import type { Resolver } from "../resolver";
 import { lookupSpfRecord, sendingIpsOf, type SpfRecord } from "../spf";
 import type { CheckModule } from "./check-module";
@@ -70,8 +70,8 @@ async function walkLookups(
   resolver: Resolver,
   record: SpfRecord,
   walk: Walk = { lookups: 0 },
-): Promise<Walk & { allQualifier: SpfAllQualifier | null }> {
-  const done = (allQualifier: SpfAllQualifier | null = null) => Object.assign(walk, { allQualifier });
+): Promise<Walk & { allQualifier: SpfQualifier | null }> {
+  const done = (allQualifier: SpfQualifier | null = null) => Object.assign(walk, { allQualifier });
   for (const mechanism of record.mechanisms) {
     if (!LOOKUP_TYPES.has(mechanism.type)) continue;
     if (!count(walk)) return done();
@@ -128,7 +128,7 @@ const PASS_EXPLANATION =
   "This domain's SPF record lists the servers allowed to send its email and tells receivers to reject or flag mail from anywhere else.";
 
 /** How the effective `all` grades a record that is otherwise valid. */
-const ALL_GRADES: Record<SpfAllQualifier | "none", [CheckResult, string]> = {
+const ALL_GRADES: Record<SpfQualifier | "none", [CheckResult, string]> = {
   "-": ["pass", PASS_EXPLANATION],
   "~": ["pass", PASS_EXPLANATION],
   "+": [
