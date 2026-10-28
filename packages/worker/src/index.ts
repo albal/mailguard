@@ -49,7 +49,7 @@ function scanApi(options: Deps): ExportedHandler<Env> {
       const normalised = normaliseDomain(domain);
       if (!normalised) return json<ScanError>({ error: "Invalid domain" }, 400);
       return cachedScanResponse(options.cache ?? caches.default, normalised, ctx, async () =>
-        json<ScanResponse>(await runScan(normalised, deps)),
+        json<ScanResponse>(await runScan(normalised, { ...deps, dqsKey: env.SPAMHAUS_DQS_KEY })),
       );
     },
   };

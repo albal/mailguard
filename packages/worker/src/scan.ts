@@ -12,6 +12,8 @@ export interface ScanDeps {
    * spent on the NXDOMAIN pre-check comes out of this budget.
    */
   checkTimeoutMs: number;
+  /** Spamhaus DQS key, from the `SPAMHAUS_DQS_KEY` Worker secret. */
+  dqsKey?: string;
 }
 
 /** Longest the NXDOMAIN pre-check may hold up the Checks. */
@@ -28,7 +30,7 @@ export async function runScan(domain: string, deps: ScanDeps): Promise<ScanRespo
   if ((await existenceOf(domain, deps)).kind === "nxdomain") return { domain, scannedAt, exists: false };
 
   const remainingMs = Math.max(0, deps.checkTimeoutMs - (Date.now() - started));
-  const context: CheckContext = { domain, resolver: deps.resolver };
+  const context: CheckContext = { domain, resolver: deps.resolver, dqsKey: deps.dqsKey };
   const results = await Promise.all(checks.map((check) => runWithTimeout(check, context, remainingMs)));
   return { domain, scannedAt, verdict: verdictOf(results), checks: results };
 }

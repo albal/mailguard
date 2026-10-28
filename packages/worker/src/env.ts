@@ -10,6 +10,8 @@ declare global {
      * `https://*.mailguard.pages.dev`.
      */
     ALLOWED_ORIGINS: string;
+    /** Spamhaus DQS query key (`wrangler secret put SPAMHAUS_DQS_KEY`). Optional: without it, DQS Blocklists are skipped. */
+    SPAMHAUS_DQS_KEY?: string;
   }
 }
 

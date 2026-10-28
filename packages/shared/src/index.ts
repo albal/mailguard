@@ -45,12 +45,40 @@ export interface SpfCheck extends CheckBase<"spf"> {
   sendingIps: string[];
 }
 
+/** What was looked up on a Blocklist: an IP, by its role(s) for the Domain, or the Domain itself. */
+export type BlocklistTargetRole = "sending" | "receiving" | "domain";
+
+/**
+ * The outcome of looking one target up on one Blocklist. `not-applicable`
+ * (e.g. an IPv6 address on an IPv4-only Blocklist) was not run and is left out
+ * of the Verdict.
+ */
+export type BlocklistOutcome = "listed" | "not-listed" | "inconclusive" | "not-applicable";
+
+export interface BlocklistLookup {
+  /** The Blocklist's display name, e.g. `SpamCop`. */
+  blocklist: string;
+  /** The IP address, or the Domain for a domain-name Blocklist. */
+  target: string;
+  /** Every role the target plays: an IP can be both a Sending and a Receiving IP. */
+  roles: BlocklistTargetRole[];
+  outcome: BlocklistOutcome;
+}
+
+export interface BlocklistCheck extends CheckBase<"blocklists"> {
+  /** Names of the Blocklists consulted (at least one applicable lookup), in configuration order. */
+  blocklists: string[];
+  /** One entry per target and Blocklist, grouped by target. */
+  lookups: BlocklistLookup[];
+}
+
 /**
  * One entry per Check in a Scan. Each Check adds its own member to this
  * union (e.g. `| SpfCheck`), discriminated by `kind`.
  */
 export type Check = MxCheck
-  | SpfCheck;
+  | SpfCheck
+  | BlocklistCheck;
 
 export type CheckKind = Check["kind"];
 

@@ -52,3 +52,39 @@ describe("Verdict", () => {
     expect(result.verdict).toBe(verdict);
   });
 });
+
+// Blocklist Check results for the Receiving IP 192.0.2.1 (the MX host, or the implicit MX).
+const blocklistRecords: Record<Exclude<Result, "warning">, DnsScript> = {
+  pass: {
+    "1.2.0.192.bl.spamcop.net": "nxdomain",
+    "1.2.0.192.psbl.surriel.com": "nxdomain",
+    "1.2.0.192.bl.mailspike.net": "nxdomain",
+  },
+  fail: {
+    "1.2.0.192.bl.spamcop.net": { A: ["127.0.0.2"] },
+    "1.2.0.192.psbl.surriel.com": "nxdomain",
+    "1.2.0.192.bl.mailspike.net": "nxdomain",
+  },
+  inconclusive: {
+    "1.2.0.192.bl.spamcop.net": { A: "error" },
+    "1.2.0.192.psbl.surriel.com": "nxdomain",
+    "1.2.0.192.bl.mailspike.net": "nxdomain",
+  },
+};
+
+describe("Verdict with Blocklists", () => {
+  it.each([
+    ["pass", "pass", "pass", "well-configured"],
+    ["pass", "pass", "fail", "high-risk"],
+    ["pass", "pass", "inconclusive", "incomplete"],
+    ["warning", "pass", "inconclusive", "at-risk"],
+    ["pass", "warning", "fail", "high-risk"],
+  ] as const)("with MX %s, SPF %s and Blocklists %s is %s", async (mxResult, spfResult, blocklistResult, verdict) => {
+    const result = await scan("example.com", { ...dns(mxResult, spfResult), ...blocklistRecords[blocklistResult] });
+
+    expect(checkOf(result, "mx").result).toBe(mxResult);
+    expect(checkOf(result, "spf").result).toBe(spfResult);
+    expect(checkOf(result, "blocklists").result).toBe(blocklistResult);
+    expect(result.verdict).toBe(verdict);
+  });
+});
