@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { DnsScript } from "./fake-resolver";
 import { SCAN_TIME, scan, scanRequest } from "./scan-helpers";
 
 // The Cache API is shared by every test in this file, so each test scans its
@@ -38,6 +39,29 @@ describe("Scan caching", () => {
       scannedAt: new Date(SCAN_TIME).toISOString(),
       exists: false,
     });
+  });
+
+  it("doesn't cache an Incomplete Scan, so the next Scan tries again", async () => {
+    const dns: DnsScript = {
+      "cache-incomplete.test": { MX: ["0 ."], TXT: "timeout" },
+      "_dmarc.cache-incomplete.test": { TXT: ["v=DMARC1; p=reject"] },
+    };
+    const first = await scan("cache-incomplete.test", dns, { now: () => SCAN_TIME, cache: caches.default });
+
+    const second = await scan("cache-incomplete.test", dns, { now: () => SCAN_TIME + 60_000, cache: caches.default });
+
+    expect(first.verdict).toBe("incomplete");
+    expect(second.scannedAt).toBe(new Date(SCAN_TIME + 60_000).toISOString());
+  });
+
+  it("doesn't cache a Scan with any Inconclusive Check, even when its Verdict is worse", async () => {
+    const dns: DnsScript = { "cache-partial.test": { MX: "timeout", TXT: ["v=spf1 +all"] } };
+    const first = await scan("cache-partial.test", dns, { now: () => SCAN_TIME, cache: caches.default });
+
+    const second = await scan("cache-partial.test", dns, { now: () => SCAN_TIME + 60_000, cache: caches.default });
+
+    expect(first.verdict).toBe("high-risk");
+    expect(second.scannedAt).toBe(new Date(SCAN_TIME + 60_000).toISOString());
   });
 
   it("doesn't cache the 400 for an invalid Domain", async () => {

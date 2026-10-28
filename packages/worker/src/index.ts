@@ -1,5 +1,5 @@
 import "./env";
-import type { ScanError, ScanResponse } from "@mailguard/shared";
+import type { ScanError } from "@mailguard/shared";
 import { normaliseDomain } from "@mailguard/shared/domain-name";
 import { createDohResolver } from "./doh-resolver";
 import { runScan, type ScanDeps } from "./scan";
@@ -46,8 +46,8 @@ function scanApi(options: Deps): ExportedHandler<Env> {
       if (!domain) return json<ScanError>({ error: "Missing domain" }, 400);
       const normalised = normaliseDomain(domain);
       if (!normalised) return json<ScanError>({ error: "Invalid domain" }, 400);
-      return cachedScanResponse(options.cache ?? caches.default, normalised, ctx, async () =>
-        json<ScanResponse>(await runScan(normalised, { ...deps, dqsKey: env.SPAMHAUS_DQS_KEY })),
+      return cachedScanResponse(options.cache ?? caches.default, normalised, ctx, () =>
+        runScan(normalised, { ...deps, dqsKey: env.SPAMHAUS_DQS_KEY }),
       );
     },
   };
