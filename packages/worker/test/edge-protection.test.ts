@@ -1,0 +1,112 @@
+import { describe, expect, it } from "vitest";
+import { SCAN_TIME, scan, scanRequest } from "./scan-helpers";
+
+// The Cache API is shared by every test in this file, so each test scans its
+// own Domain.
+
+describe("Scan caching", () => {
+  it("returns the cached Scan, with its original Scan time, for a repeat Scan within 5 minutes", async () => {
+    const dns = { "cache-hit.test": { MX: ["0 ."] } };
+    const first = await scan("cache-hit.test", dns, { now: () => SCAN_TIME, cache: caches.default });
+
+    const second = await scan("cache-hit.test", dns, { now: () => SCAN_TIME + 60_000, cache: caches.default });
+
+    expect(second.scannedAt).toBe(first.scannedAt);
+    expect(second.scannedAt).toBe(new Date(SCAN_TIME).toISOString());
+  });
+});
+
+/** A rate limiter that records its keys and allows only the first `allowed` calls. */
+function fakeLimiter(allowed: number) {
+  const keys: string[] = [];
+  return {
+    keys,
+    async limit({ key }: RateLimitOptions): Promise<RateLimitOutcome> {
+      keys.push(key);
+      return { success: keys.length <= allowed };
+    },
+  };
+}
+
+describe("Rate limiting", () => {
+  it("answers 429 with an error body once the client IP is over its limit", async () => {
+    const limiter = fakeLimiter(0);
+
+    const response = await scanRequest(
+      "https://api.mailguard.test/api/scan?domain=limited.test",
+      {},
+      { limiter },
+      { headers: { "cf-connecting-ip": "203.0.113.7" } },
+    );
+
+    expect(response.status).toBe(429);
+    expect(await response.json()).toHaveProperty("error");
+    expect(limiter.keys).toEqual(["203.0.113.7"]);
+  });
+
+  it("counts cached Scans against the limit too", async () => {
+    const limiter = fakeLimiter(1);
+    const deps = { limiter, cache: caches.default };
+    const url = "https://api.mailguard.test/api/scan?domain=limited-cached.test";
+
+    const first = await scanRequest(url, {}, deps);
+    await first.body?.cancel();
+    const second = await scanRequest(url, {}, deps);
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(429);
+    await second.body?.cancel();
+  });
+});
+
+const PRODUCTION_ORIGIN = "https://mailguard.pages.dev";
+const PREVIEW_ORIGINS = "https://mailguard.pages.dev,https://*.mailguard.pages.dev";
+
+async function allowOriginFor(
+  origin: string,
+  { domain, env, deps }: { domain: string; env?: Partial<Env>; deps?: Parameters<typeof scanRequest>[2] },
+) {
+  const response = await scanRequest(`https://api.mailguard.test/api/scan?domain=${domain}`, {}, deps, {
+    headers: { origin },
+    env,
+  });
+  await response.body?.cancel();
+  return response.headers.get("access-control-allow-origin");
+}
+
+describe("CORS", () => {
+  it("allows the production Pages origin", async () => {
+    const env = { ALLOWED_ORIGINS: PRODUCTION_ORIGIN };
+
+    expect(await allowOriginFor(PRODUCTION_ORIGIN, { domain: "cors-prod.test", env })).toBe(PRODUCTION_ORIGIN);
+  });
+
+  it("sends no allow header to any other origin", async () => {
+    const env = { ALLOWED_ORIGINS: PRODUCTION_ORIGIN };
+
+    expect(await allowOriginFor("https://evil.example", { domain: "cors-deny.test", env })).toBeNull();
+    expect(await allowOriginFor("https://feature-x.mailguard.pages.dev", { domain: "cors-deny.test", env })).toBeNull();
+  });
+
+  it("allows Pages branch previews when the preview origins are configured", async () => {
+    const env = { ALLOWED_ORIGINS: PREVIEW_ORIGINS };
+    const preview = "https://feature-x.mailguard.pages.dev";
+
+    expect(await allowOriginFor(preview, { domain: "cors-preview.test", env })).toBe(preview);
+    expect(await allowOriginFor("https://mailguard.pages.dev.evil.example", { domain: "cors-preview.test", env })).toBeNull();
+    expect(await allowOriginFor("https://evilmailguard.pages.dev", { domain: "cors-preview.test", env })).toBeNull();
+  });
+
+  it("allows the caller's origin on cached Scans and on 429s, so the App can read them", async () => {
+    const env = { ALLOWED_ORIGINS: PRODUCTION_ORIGIN };
+    const cached = { cache: caches.default };
+    await allowOriginFor("https://evil.example", { domain: "cors-cached.test", env, deps: cached });
+
+    expect(await allowOriginFor(PRODUCTION_ORIGIN, { domain: "cors-cached.test", env, deps: cached })).toBe(
+      PRODUCTION_ORIGIN,
+    );
+    expect(
+      await allowOriginFor(PRODUCTION_ORIGIN, { domain: "cors-429.test", env, deps: { limiter: fakeLimiter(0) } }),
+    ).toBe(PRODUCTION_ORIGIN);
+  });
+});

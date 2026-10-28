@@ -3,14 +3,15 @@ import { useState, type FormEvent } from "react";
 import { ScanResults } from "./components/ScanResults";
 import { ScanSkeleton } from "./components/ScanSkeleton";
 import { displayDomain, toDomain } from "./domain";
-import { fetchScan } from "./scan-api";
+import { fetchScan, RateLimitedError } from "./scan-api";
 
 type ScanState =
   | { phase: "idle" }
   | { phase: "scanning" }
   | { phase: "done"; scan: Scan }
   | { phase: "nonexistent"; response: NonexistentDomain }
-  | { phase: "failed" };
+  | { phase: "failed" }
+  | { phase: "rate-limited" };
 
 export function App() {
   const [input, setInput] = useState("");
@@ -29,8 +30,8 @@ export function App() {
     try {
       const response = await fetchScan(parsed.domain);
       setState("exists" in response ? { phase: "nonexistent", response } : { phase: "done", scan: response });
-    } catch {
-      setState({ phase: "failed" });
+    } catch (error) {
+      setState({ phase: error instanceof RateLimitedError ? "rate-limited" : "failed" });
     }
   }
 
@@ -85,6 +86,11 @@ export function App() {
         {state.phase === "failed" && (
           <p role="alert" className="border-2 border-red-600 p-4 text-red-600">
             The Scan couldn't be completed. Please try again.
+          </p>
+        )}
+        {state.phase === "rate-limited" && (
+          <p role="alert" className="border-2 border-red-600 p-4 text-red-600">
+            You've run a lot of Scans in the last minute. Please wait a moment, then try again.
           </p>
         )}
       </main>

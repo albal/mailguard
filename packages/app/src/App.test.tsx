@@ -140,6 +140,19 @@ describe("When the Scan API fails", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent(/couldn't be completed/i);
   });
+
+  it("asks the user to wait when they are rate limited", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ error: "Too many Scans" }, { status: 429 })),
+    );
+
+    await startScan("example.com");
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(/please wait/i);
+    expect(alert).not.toHaveTextContent(/couldn't be completed/i);
+  });
 });
 
 describe("Showing a Scan", () => {
