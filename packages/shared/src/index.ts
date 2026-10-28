@@ -31,11 +31,29 @@ export interface MxCheck extends CheckBase<"mx"> {
   implicitMxAddresses: string[];
 }
 
+/** A DMARC policy value (`p=` / `sp=`). */
+export type DmarcPolicy = "none" | "quarantine" | "reject";
+
+export interface DmarcCheck extends CheckBase<"dmarc"> {
+  /** The domain whose `_dmarc` record supplied the policy: the Domain or its Organizational Domain. Null when none was found. */
+  policyDomain: string | null;
+  /** True when the policy was inherited from the Organizational Domain. */
+  inherited: boolean;
+  /** The DMARC record as published, or null when none was found. */
+  record: string | null;
+  /** The policy that applies to the Domain (`sp=` over `p=` when inherited). Null when there is no valid record. */
+  policy: DmarcPolicy | null;
+  /** Percentage of mail the policy applies to (`pct=`, default 100). Null when there is no valid record. */
+  pct: number | null;
+}
+
 /**
  * One entry per Check in a Scan. Each Check adds its own member to this
  * union (e.g. `| SpfCheck`), discriminated by `kind`.
  */
-export type Check = MxCheck;
+export type Check =
+  | MxCheck
+  | DmarcCheck;
 
 export type CheckKind = Check["kind"];
 

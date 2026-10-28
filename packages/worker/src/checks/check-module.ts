@@ -17,3 +17,6 @@ export interface CheckModule<K extends CheckKind = CheckKind> {
   /** The Check as reported when it could not determine an answer (e.g. it timed out). */
   inconclusive(explanation: string): Extract<Check, { kind: K }>;
 }
+
+/** Any one Check module, whatever its kind (a union, so each keeps its own kind). */
+export type AnyCheckModule = { [K in CheckKind]: CheckModule<K> }[CheckKind];

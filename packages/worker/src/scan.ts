@@ -1,6 +1,6 @@
 import type { Check, Scan } from "@mailguard/shared";
 import { checks } from "./checks";
-import type { CheckContext, CheckModule } from "./checks/check-module";
+import type { AnyCheckModule, CheckContext } from "./checks/check-module";
 import type { Resolver } from "./resolver";
 import { verdictOf } from "./verdict";
 
@@ -19,7 +19,7 @@ export async function runScan(domain: string, deps: ScanDeps): Promise<Scan> {
   return { domain, scannedAt, verdict: verdictOf(results), checks: results };
 }
 
-async function runWithTimeout(check: CheckModule, context: CheckContext, timeoutMs: number): Promise<Check> {
+async function runWithTimeout(check: AnyCheckModule, context: CheckContext, timeoutMs: number): Promise<Check> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timedOut = new Promise<Check>((resolve) => {
     timer = setTimeout(

@@ -7,6 +7,7 @@ import { scan } from "./scan-helpers";
 const resolvingMx: DnsScript = {
   "example.com": { MX: ["10 mx.example.com"] },
   "mx.example.com": { A: ["192.0.2.1"] },
+  "_dmarc.example.com": { TXT: ["v=DMARC1; p=reject"] },
 };
 
 describe("Verdict", () => {
@@ -19,10 +20,10 @@ describe("Verdict", () => {
   });
 
   it("is At Risk when there are Warnings but no Fails", async () => {
-    expect((await scan("example.com", { "example.com": { A: ["192.0.2.1"] } })).verdict).toBe("at-risk");
+    expect((await scan("example.com", { ...resolvingMx, "example.com": { A: ["192.0.2.1"] } })).verdict).toBe("at-risk");
   });
 
   it("is Incomplete when a Check is Inconclusive and none fail or warn", async () => {
-    expect((await scan("example.com", { "example.com": { MX: "timeout" } })).verdict).toBe("incomplete");
+    expect((await scan("example.com", { ...resolvingMx, "example.com": { MX: "timeout" } })).verdict).toBe("incomplete");
   });
 });
