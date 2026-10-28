@@ -69,8 +69,14 @@ export interface BlocklistLookup {
 }
 
 export interface BlocklistCheck extends CheckBase<"blocklists"> {
-  /** Names of the Blocklists consulted (at least one applicable lookup), in configuration order. */
+  /** Names of the Blocklists actually queried (at least one applicable lookup), in configuration order. */
   blocklists: string[];
+  /**
+   * Names of the Blocklists that apply but weren't queried because this
+   * deployment has no key for them (Spamhaus DQS without `SPAMHAUS_DQS_KEY`).
+   * Their lookups are Inconclusive.
+   */
+  blocklistsWithoutKey: string[];
   /** One entry per subject and Blocklist, grouped by subject. */
   lookups: BlocklistLookup[];
 }

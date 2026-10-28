@@ -120,6 +120,31 @@ describe("Spamhaus refusals and errors", () => {
     expect(result.verdict).toBe("incomplete");
     expect(resolver.queries.some((q) => q.includes("spamhaus"))).toBe(false);
   });
+
+  it("counts only the Blocklists actually queried when no DQS key is configured, and says which weren't and why", async () => {
+    const blocklists = checkOf(
+      await scan("example.com", base, {}, { env: { SPAMHAUS_DQS_KEY: undefined } }),
+      "blocklists",
+    );
+
+    expect(blocklists.blocklists).toEqual(["SpamCop", "PSBL", "Mailspike"]);
+    expect(blocklists.blocklistsWithoutKey).toEqual(["Spamhaus ZEN", "Spamhaus DBL"]);
+    expect(blocklists.explanation).toMatch(/Spamhaus DQS key/);
+  });
+
+  it("lists no Blocklist as missing its key when the DQS key is configured", async () => {
+    const blocklists = checkOf(
+      await scan("example.com", {
+        ...base,
+        [`example.com.${DBL}`]: "nxdomain",
+        [`10.2.0.192.${ZEN}`]: "nxdomain",
+      }),
+      "blocklists",
+    );
+
+    expect(blocklists.blocklistsWithoutKey).toEqual([]);
+    expect(blocklists.blocklists).toHaveLength(5);
+  });
 });
 
 describe("Spamhaus key and zones (ADR-0002)", () => {

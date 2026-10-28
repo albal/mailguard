@@ -12,7 +12,9 @@ function plural(count: number, noun: string): string {
 
 export function BlocklistDetails({ check }: { check: BlocklistCheck }) {
   const listed = check.lookups.filter((l) => l.outcome === "listed");
-  const unchecked = check.lookups.filter((l) => l.outcome === "inconclusive");
+  const withoutKey = check.blocklistsWithoutKey;
+  // Lookups on a Blocklist without its key are explained once, below, not one by one.
+  const unchecked = check.lookups.filter((l) => l.outcome === "inconclusive" && !withoutKey.includes(l.blocklist));
   return (
     <div className="space-y-2">
       <p className="text-sm text-muted">
@@ -27,6 +29,12 @@ export function BlocklistDetails({ check }: { check: BlocklistCheck }) {
             </li>
           ))}
         </ul>
+      )}
+      {withoutKey.length > 0 && (
+        <p className="text-sm text-muted">
+          {withoutKey.join(" and ")} {withoutKey.length === 1 ? "wasn't" : "weren't"} checked: this MailGuard server has no
+          Spamhaus DQS key.
+        </p>
       )}
       {unchecked.length > 0 && (
         <ul aria-label="Lookups that couldn't be completed" className="space-y-1 text-sm text-muted">

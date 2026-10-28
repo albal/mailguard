@@ -10,7 +10,7 @@ import { beforeDeadline, reporter, type CheckContext, type CheckModule } from ".
 // Checks run concurrently, so this finds the IPs itself rather than reading
 // the SPF and MX Checks' results.
 
-const report = reporter("blocklists", { blocklists: [], lookups: [] });
+const report = reporter("blocklists", { blocklists: [], blocklistsWithoutKey: [], lookups: [] });
 
 export const blocklistCheck: CheckModule<"blocklists"> = {
   kind: "blocklists",
@@ -26,9 +26,15 @@ export const blocklistCheck: CheckModule<"blocklists"> = {
     const { undetermined } = ips;
 
     const applicable = lookups.filter((l) => l.outcome !== "not-applicable");
-    const names = blocklists.map((b) => b.name).filter((name) => applicable.some((l) => l.blocklist === name));
+    const applies = (b: Blocklist) => applicable.some((l) => l.blocklist === b.name);
+    const withoutKey = blocklists.filter((b) => applies(b) && !canQuery(b, context));
+    const queried = blocklists.filter((b) => applies(b) && canQuery(b, context));
     const listings = applicable.filter((l) => l.outcome === "listed").length;
-    const details = { blocklists: names, lookups };
+    const details = {
+      blocklists: queried.map((b) => b.name),
+      blocklistsWithoutKey: withoutKey.map((b) => b.name),
+      lookups,
+    };
 
     if (listings > 0) {
       return report(
@@ -37,8 +43,16 @@ export const blocklistCheck: CheckModule<"blocklists"> = {
         details,
       );
     }
-    if (undetermined || applicable.some((l) => l.outcome === "inconclusive")) {
+    const failed = applicable.filter((l) => l.outcome === "inconclusive" && !withoutKey.some((b) => b.name === l.blocklist));
+    if (undetermined || failed.length > 0) {
       return report("inconclusive", UNDETERMINED, details);
+    }
+    if (withoutKey.length > 0) {
+      return report(
+        "inconclusive",
+        `${withoutKey.map((b) => b.name).join(" and ")} couldn't be checked because this MailGuard server has no Spamhaus DQS key configured, so MailGuard couldn't tell whether this domain or its mail servers are listed there.`,
+        details,
+      );
     }
     if (applicable.length === 0) {
       return report(
@@ -49,7 +63,7 @@ export const blocklistCheck: CheckModule<"blocklists"> = {
     }
     return report(
       "pass",
-      `None of this domain's mail servers are listed on the ${names.length} Blocklists checked.`,
+      `None of this domain's mail servers are listed on the ${queried.length} Blocklists checked.`,
       details,
     );
   },
@@ -110,11 +124,16 @@ async function outcomeOf(blocklist: Blocklist, subject: string, { resolver, dqsK
   if (blocklist.lists === "ip" && isIpv6(subject) && !blocklist.ipv6) return "not-applicable";
   // Without a key a DQS Blocklist can't be asked. Leaving it out would let a
   // misconfigured deployment report a better Verdict than it knows.
-  if (blocklist.dqs && !dqsKey) return "inconclusive";
+  if (!canQuery(blocklist, { dqsKey })) return "inconclusive";
   const answer = await resolver.resolve(queryNameOf(blocklist, subject, dqsKey), "A");
   if (answer.kind === "nxdomain") return "not-listed";
   if (answer.kind !== "answers") return "inconclusive";
   if (answer.answers.some((code) => blocklist.listedCodes.includes(code))) return "listed";
   if (answer.answers.every((code) => blocklist.notListedCodes.includes(code))) return "not-listed";
   return "inconclusive";
+}
+
+/** Whether this deployment can query `blocklist`: a DQS Blocklist needs the DQS key. */
+function canQuery(blocklist: Blocklist, { dqsKey }: Pick<CheckContext, "dqsKey">): boolean {
+  return !blocklist.dqs || Boolean(dqsKey);
 }

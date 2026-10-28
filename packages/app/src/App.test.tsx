@@ -388,4 +388,33 @@ describe("Showing the Blocklist Check", () => {
     ]);
     expect(within(card).queryByRole("list", { name: "Listings" })).not.toBeInTheDocument();
   });
+
+  it("says why Spamhaus wasn't checked when the server has no DQS key, without counting it", async () => {
+    stubScanApi(
+      aScan({
+        verdict: "incomplete",
+        checks: [
+          aBlocklistCheck({
+            result: "inconclusive",
+            blocklists: ["SpamCop"],
+            blocklistsWithoutKey: ["Spamhaus ZEN", "Spamhaus DBL"],
+            lookups: [
+              { blocklist: "Spamhaus DBL", subject: "example.com", roles: ["domain"], outcome: "inconclusive" },
+              { blocklist: "SpamCop", subject: "192.0.2.1", roles: ["receiving"], outcome: "not-listed" },
+              { blocklist: "Spamhaus ZEN", subject: "192.0.2.1", roles: ["receiving"], outcome: "inconclusive" },
+            ],
+          }),
+        ],
+      }),
+    );
+
+    await startScan("example.com");
+
+    const card = await screen.findByRole("article", { name: "Blocklists" });
+    expect(within(card).getByText("Checked against 1 Blocklist, 0 listings")).toBeInTheDocument();
+    expect(
+      within(card).getByText("Spamhaus ZEN and Spamhaus DBL weren't checked: this MailGuard server has no Spamhaus DQS key."),
+    ).toBeInTheDocument();
+    expect(within(card).queryByRole("list", { name: "Lookups that couldn't be completed" })).not.toBeInTheDocument();
+  });
 });
