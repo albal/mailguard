@@ -2,3 +2,41 @@
 
 /* Theme is the `dark` class on <html> (PRD §3.2). */
 @custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * The strict palette (PRD §4.1): black, white, red, plus greys. No green.
+ * Use these semantic colours rather than raw Tailwind reds/greys so both
+ * themes meet WCAG AA:
+ *   bg-accent / border-accent   solid red fills (Scan button, Fail) - white text on it is 4.8:1
+ *   text-accent-text            red text or outlines on the page background
+ *                               (#DC2626 is only 4.3:1 on black, so dark mode lightens it)
+ *   text-muted / border-muted   secondary grey text
+ */
+@theme {
+  --color-accent: #dc2626;
+  --color-accent-hover: #b91c1c;
+  --color-accent-text: #dc2626;
+  --color-muted: #4b5563;
+  --color-page: #ffffff;
+  --color-ink: #000000;
+}
+
+@layer base {
+  .dark {
+    --color-accent-text: #f87171;
+    --color-muted: #9ca3af;
+    --color-page: #000000;
+    --color-ink: #f3f4f6;
+    color-scheme: dark;
+  }
+
+  html {
+    background-color: var(--color-page);
+    color: var(--color-ink);
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--color-accent-text);
+    outline-offset: 2px;
+  }
+}

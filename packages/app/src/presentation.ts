@@ -6,22 +6,22 @@ export const checkResultPresentation: Record<CheckResult, { icon: string; label:
   pass: {
     icon: "✓",
     label: "Pass",
-    className: "border-2 border-black text-black dark:border-white dark:text-white",
+    className: "border-2 border-ink text-ink",
   },
   warning: {
     icon: "!",
     label: "Warning",
-    className: "border-2 border-red-600 text-red-600",
+    className: "border-2 border-accent-text text-accent-text",
   },
   fail: {
     icon: "✕",
     label: "Fail",
-    className: "border-2 border-red-600 bg-red-600 text-white",
+    className: "border-2 border-accent bg-accent text-white",
   },
   inconclusive: {
     icon: "?",
     label: "Inconclusive",
-    className: "border-2 border-gray-400 text-gray-500 dark:text-gray-400",
+    className: "border-2 border-dashed border-muted text-muted",
   },
 };
 

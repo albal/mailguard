@@ -8,8 +8,8 @@ export function MxDetails({ check }: { check: MxCheck }) {
       <ul className="space-y-1 font-mono text-sm">
         {check.hosts.map((host) => (
           <li key={host.exchange}>
-            <span className="text-gray-500">{host.preference}</span> <span>{host.exchange}</span>
-            {host.addresses.length > 0 && <span className="text-gray-500"> → {host.addresses.join(", ")}</span>}
+            <span className="text-muted">{host.preference}</span> <span>{host.exchange}</span>
+            {host.addresses.length > 0 && <span className="text-muted"> → {host.addresses.join(", ")}</span>}
           </li>
         ))}
       </ul>

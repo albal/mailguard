@@ -2,6 +2,7 @@ import type { NonexistentDomain, Scan } from "@mailguard/shared";
 import { useState, type FormEvent } from "react";
 import { ScanResults } from "./components/ScanResults";
 import { ScanSkeleton } from "./components/ScanSkeleton";
+import { ThemeToggle } from "./components/ThemeToggle";
 import { displayDomain, toDomain } from "./domain";
 import { fetchScan, RateLimitedError } from "./scan-api";
 
@@ -36,14 +37,17 @@ export function App() {
   }
 
   return (
-    <div className="min-h-screen bg-white text-black dark:bg-black dark:text-white">
+    <div className="min-h-screen bg-page text-ink">
       <header className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4">
-        <span className="text-xl font-black tracking-tight">MailGuard</span>
+        <span className="text-xl font-black tracking-tight">
+          Mail<span className="text-accent-text">Guard</span>
+        </span>
+        <ThemeToggle />
       </header>
 
       <main className="mx-auto max-w-5xl space-y-10 px-4 pb-16">
-        <section className="space-y-6 pt-10 text-center">
-          <h1 className="text-4xl font-black sm:text-6xl">Can your domain be spoofed?</h1>
+        <section className="space-y-8 pt-10 text-center sm:pt-20">
+          <h1 className="text-4xl font-black tracking-tight sm:text-6xl">Can your domain be spoofed?</h1>
           <form onSubmit={onSubmit} className="mx-auto flex max-w-2xl flex-col gap-3 sm:flex-row">
             <input
               type="text"
@@ -55,12 +59,12 @@ export function App() {
               onChange={(e) => setInput(e.target.value)}
               aria-invalid={inputError ? true : undefined}
               aria-describedby={inputError ? "domain-input-error" : undefined}
-              className="min-w-0 flex-1 border-4 border-black bg-white px-4 py-3 text-lg text-black dark:border-white dark:bg-black dark:text-white"
+              className="min-w-0 flex-1 border-4 border-ink bg-page px-5 py-4 text-xl text-ink placeholder:text-muted sm:text-2xl"
             />
             <button
               type="submit"
               aria-label="Scan"
-              className="bg-red-600 px-8 py-3 text-lg font-black text-white hover:bg-red-700 disabled:opacity-60"
+              className="bg-accent px-10 py-4 text-xl font-black uppercase tracking-wide text-white hover:bg-accent-hover disabled:cursor-wait disabled:opacity-60 sm:text-2xl"
               disabled={state.phase === "scanning"}
             >
               Scan
@@ -84,7 +88,7 @@ export function App() {
           </section>
         )}
         {state.phase === "failed" && (
-          <p role="alert" className="border-2 border-red-600 p-4 text-red-600">
+          <p role="alert" className="border-2 border-accent-text p-4 font-bold text-accent-text">
             The Scan couldn't be completed. Please try again.
           </p>
         )}
