@@ -1,0 +1,144 @@
+// Scan API contract shared by the Worker and the App: types, plus the few
+// constants both sides must agree on. Vocabulary follows GLOSSARY.md.
+
+/** The outcome of a Check. */
+export type CheckResult = "pass" | "warning" | "fail" | "inconclusive";
+
+/** The single overall rating of a Scan, taken from its worst Check Result. */
+export type Verdict = "high-risk" | "at-risk" | "incomplete" | "well-configured";
+
+/** Fields every Check in a Scan carries. */
+export interface CheckBase<Kind extends string> {
+  kind: Kind;
+  result: CheckResult;
+  /** Plain-English explanation of what the Check means and why it got this result. */
+  explanation: string;
+}
+
+/** One MX host of the Domain, with the addresses it resolved to. */
+export interface MxHost {
+  preference: number;
+  exchange: string;
+  addresses: string[];
+}
+
+export interface MxCheck extends CheckBase<"mx"> {
+  /** True when the Domain publishes a Null MX (`MX 0 .`, RFC 7505). */
+  nullMx: boolean;
+  /** MX hosts, ordered by preference. Empty for a Null MX or when there is no MX. */
+  hosts: MxHost[];
+  /** A/AAAA addresses of the Domain itself, used as an implicit MX when there is no MX. */
+  implicitMxAddresses: string[];
+}
+
+/** An SPF mechanism's qualifier (RFC 7208 §4.6.2), e.g. on `all`. */
+export type SpfQualifier = "+" | "-" | "~" | "?";
+
+/** RFC 7208 §4.6.4: more DNS-querying SPF terms than this is a permerror. */
+export const SPF_LOOKUP_LIMIT = 10;
+
+export interface SpfCheck extends CheckBase<"spf"> {
+  /** Every SPF record (`v=spf1 …`) published at the Domain: normally exactly one. */
+  records: string[];
+  /** DNS lookups the record needs, counting nested `include:`/`redirect=`; null if not counted. */
+  lookupCount: number | null;
+  /** Qualifier of the effective `all` (following `redirect=`), or null when there is none. */
+  allQualifier: SpfQualifier | null;
+  /** Sending IPs: the single-address `ip4:`/`ip6:` entries of the Domain's own record. */
+  sendingIps: string[];
+}
+
+/** What was looked up on a Blocklist: an IP, by its role(s) for the Domain, or the Domain itself. */
+export type BlocklistSubjectRole = "sending" | "receiving" | "domain";
+
+/**
+ * The outcome of looking one subject up on one Blocklist. `not-applicable`
+ * (e.g. an IPv6 address on an IPv4-only Blocklist) was not run and is left out
+ * of the Verdict.
+ */
+export type BlocklistOutcome = "listed" | "not-listed" | "inconclusive" | "not-applicable";
+
+export interface BlocklistLookup {
+  /** The Blocklist's display name, e.g. `SpamCop`. */
+  blocklist: string;
+  /** The IP address, or the Domain for a domain-name Blocklist. */
+  subject: string;
+  /** Every role the subject plays: an IP can be both a Sending and a Receiving IP. */
+  roles: BlocklistSubjectRole[];
+  outcome: BlocklistOutcome;
+}
+
+export interface BlocklistCheck extends CheckBase<"blocklists"> {
+  /** Names of the Blocklists actually queried (at least one applicable lookup), in configuration order. */
+  blocklists: string[];
+  /**
+   * Names of the Blocklists that apply but weren't queried because this
+   * deployment has no key for them (Spamhaus DQS without `SPAMHAUS_DQS_KEY`).
+   * Their lookups are Inconclusive.
+   */
+  blocklistsWithoutKey: string[];
+  /** One entry per subject and Blocklist, grouped by subject. */
+  lookups: BlocklistLookup[];
+}
+
+/** A DMARC policy value (`p=` / `sp=`). */
+export type DmarcPolicy = "none" | "quarantine" | "reject";
+
+/**
+ * Where the DMARC policy came from (RFC 9989 §4.10.1): the Domain's own
+ * record, or one inherited from its Organizational Domain or, failing that,
+ * from the Public Suffix Domain above it (a `psd=y` record).
+ */
+export type DmarcPolicySource = "domain" | "organizational-domain" | "public-suffix-domain";
+
+export interface DmarcCheck extends CheckBase<"dmarc"> {
+  /** The domain whose `_dmarc` record supplied the policy. Null when none was found. */
+  policyDomain: string | null;
+  /** Where the policy came from. Null when none was found. */
+  policySource: DmarcPolicySource | null;
+  /** The DMARC record as published, or null when none was found. */
+  record: string | null;
+  /** The policy that applies to the Domain (`sp=` over `p=` when inherited). Null when no policy applies. */
+  policy: DmarcPolicy | null;
+  /** True when the record asks for test mode (`t=y`), which applies one level below the stated policy. */
+  testMode: boolean;
+}
+
+/**
+ * One entry per Check in a Scan. Each Check adds its own member to this
+ * union (e.g. `| SpfCheck`), discriminated by `kind`.
+ */
+export type Check = MxCheck
+  | SpfCheck
+  | DmarcCheck
+  | BlocklistCheck;
+
+export type CheckKind = Check["kind"];
+
+/** A completed Scan of a Domain: the 200 body of `GET /api/scan`. */
+export interface Scan {
+  domain: string;
+  /** ISO-8601 time the Scan was performed (may predate the response if cached). */
+  scannedAt: string;
+  verdict: Verdict;
+  checks: Check[];
+}
+
+/** Error body for non-200 responses. */
+export interface ScanError {
+  error: string;
+}
+
+/**
+ * The 200 body of `GET /api/scan` when the Domain doesn't exist (NXDOMAIN).
+ * No Checks run and there is no Verdict.
+ */
+export interface NonexistentDomain {
+  domain: string;
+  /** ISO-8601 time the existence check was performed. */
+  scannedAt: string;
+  exists: false;
+}
+
+/** Every 200 body of `GET /api/scan`. Tell them apart with `"exists" in body`. */
+export type ScanResponse = Scan | NonexistentDomain;

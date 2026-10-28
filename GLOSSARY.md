@@ -29,7 +29,7 @@ A Check Result meaning the Check could not determine an answer, for example beca
 _Avoid_: Error, unknown, skipped
 
 **Organizational Domain**:
-The registrable domain above a Domain (e.g. `example.com` for `mail.example.com`), where DMARC policy is looked up if the Domain itself publishes none.
+The domain that the DMARC DNS Tree Walk identifies as owning DMARC policy for a Domain (e.g. `example.com` for `mail.example.com`). Its policy applies when the Domain itself publishes none.
 _Avoid_: Root domain, parent domain, apex
 
 **Blocklist**:

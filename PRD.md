@@ -43,15 +43,15 @@ Every **Check** produces a **Check Result**: Pass, Warning, Fail or **Inconclusi
 | Warning | `?all`, or no `all` mechanism |
 | Pass    | `-all` or `~all` |
 
-**DMARC** (`_dmarc.<Domain>`, falling back to `_dmarc.<Organizational Domain>`, determined via the Public Suffix List):
+**DMARC** ([RFC 9989](https://www.rfc-editor.org/rfc/rfc9989.html)): `_dmarc.<Domain>` is checked first. If it has no DMARC record, the RFC 9989 DNS Tree Walk (§4.10) finds the **Organizational Domain** (at most 8 queries; names longer than 8 labels are shortened to 7 first; `psd=y`/`psd=n`/`psd=u` are honoured), and that domain's record, or failing that a `psd=y` record, supplies the policy. A record that doesn't begin with `v=DMARC1` is ignored, and a name with several DMARC records is treated as having none.
 
 | Result  | Condition |
 | ------- | --------- |
-| Fail    | No record after fallback, or invalid record |
-| Warning | `p=none`, or `pct` below 100 |
-| Pass    | `p=quarantine` or `p=reject` at 100% |
+| Fail    | No applicable record after discovery; or an invalid `p`/`sp`/`np` with no syntactically valid `rua` URI (no DMARC processing applies) |
+| Warning | The applicable policy is `none` (including a missing `p`, or an invalid `p`/`sp`/`np` with a valid `rua`, both treated as `p=none`), or test mode (`t=y`) |
+| Pass    | The applicable policy is `quarantine` or `reject`, and `t` is not `y` |
 
-When the policy is inherited from the **Organizational Domain**, `sp=` (if present) takes precedence over `p=`. The UI shows which domain the policy came from.
+The applicable policy is `p` when the record is the Domain's own. When the policy is inherited, `sp` takes precedence over `p` if present (`np` doesn't apply, because a Domain that doesn't exist is never Checked). Unknown tags, including the former `pct`, are ignored. The UI shows which domain the policy came from.
 
 **MX**:
 
@@ -64,9 +64,11 @@ When the policy is inherited from the **Organizational Domain**, `sp=` (if prese
 **Blocklists** ([ADR-0002](./docs/adr/0002-spamhaus-via-dqs.md)):
 
 * **Domain:** Spamhaus DBL (via DQS).
-* **Sending IPs** (single `ip4:`/`ip6:` addresses in the SPF record; ranges and `include:`d providers are skipped) and **Receiving IPs** (MX host addresses): Spamhaus ZEN (via DQS), SpamCop, PSBL, Mailspike.
+* **Sending IPs** (`+`-qualified single-address `ip4:`/`ip6:` mechanisms in the Domain's own SPF record, i.e. no prefix, `/32` or `/128`; ranges, `-`/`~`/`?` mechanisms and `include:`d or `redirect=`ed providers are skipped) and **Receiving IPs** (the A/AAAA addresses of the MX hosts; a Domain with no MX has none, even if it has an implicit MX): Spamhaus ZEN (via DQS), SpamCop, PSBL, Mailspike.
 * Any listing is a Fail; the UI names the Blocklist and labels the IP's role (sending or receiving server).
 * An IPv6 address against an IPv4-only Blocklist is *not applicable*: not run and not counted in the Verdict.
+* If the Spamhaus DQS key isn't configured, every Spamhaus lookup is Inconclusive (never skipped, so a misconfigured deployment can't report a better Verdict than it knows). Those Blocklists aren't counted as checked, and the UI says they weren't checked because the key is missing.
+* If the Check's timeout fires, lookups that finished keep their outcome and unfinished ones are Inconclusive; a listing already found is still a Fail.
 * The Blocklist set is defined in a single configuration file.
 
 DKIM is out of scope for V1 (see §6).
@@ -117,7 +119,7 @@ The word "Secure" is deliberately not used: passing every Check does not make a 
 * Resolves DNS via Cloudflare DoH (`1.1.1.1`).
 * Runs Checks concurrently, each with its own timeout, to stay within the performance budget.
 * The Spamhaus DQS key is stored as a Worker secret.
-* **Caching:** Scan results are cached per Domain at the edge (Workers Cache API) for 5 minutes.
+* **Caching:** Scan results are cached per Domain at the edge (Workers Cache API) for 5 minutes, as is the NXDOMAIN response. A Scan with any Inconclusive Check Result (so every Incomplete Scan) isn't cached, so the next Scan asks DNS again.
 
 ## 4. UI/Design Specifications
 
@@ -127,7 +129,8 @@ A strict three-color palette (plus greys) conveys a technical, security-focused 
 
 * **Black:** `#000000` to `#111111` (Dark Mode backgrounds, Light Mode text).
 * **White:** `#FFFFFF` to `#F3F4F6` (Light Mode backgrounds, Dark Mode text).
-* **Red:** `#E60000` or `#DC2626` (primary accent): the "Scan" button, loading indicators, Warnings and Fails.
+* **Red:** `#E60000` or `#DC2626` (primary accent): the "Scan" button, loading indicators, Warnings and Fails. Solid red fills are `#DC2626`, and `#E60000` on hover (white text on either is 4.8:1).
+* **Dark-mode red text:** red text and outlines on the black Dark Mode background are `#F87171`, a lighter red, because `#DC2626` is only 4.3:1 on black and fails WCAG AA. This is a deliberate exception to the strict palette, for contrast only.
 
 Check Results are distinguished by icon and label, never by color alone:
 
@@ -141,7 +144,7 @@ Check Results are distinguished by icon and label, never by color alone:
 ### 4.2 Theming (Dark & Light Mode)
 
 * **Light Mode:** White background, stark black text, heavy black borders for inputs/cards, red accents.
-* **Dark Mode:** Deep black/charcoal background, crisp white text, white/gray borders. Red accents remain the same.
+* **Dark Mode:** Deep black/charcoal background, crisp white text, white/gray borders. Red fills remain the same; red text and outlines use `#F87171` for contrast (§4.1).
 * **Toggle:** An icon in the top right corner (Sun/Moon or a simple switch) toggles `class="dark"` on the root HTML element.
 
 ### 4.3 Layout

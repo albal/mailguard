@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MailGuard</title>
+    <script>
+      // Apply the saved theme before first paint (ThemeToggle owns it afterwards).
+      try {
+        if (localStorage.getItem("mailguard-theme") === "dark") document.documentElement.classList.add("dark");
+      } catch {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

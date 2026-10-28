@@ -1,0 +1,25 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "mailguard-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+
+  // Production (top level). Bindings and vars are not inherited by `env`
+  // blocks, so each environment below redeclares them.
+  // The Cache API only works when the Worker is served from a custom domain
+  // or route; on *.workers.dev every Scan is a cache miss.
+  "ratelimits": [{ "name": "SCAN_LIMITER", "namespace_id": "1001", "simple": { "limit": 10, "period": 60 } }],
+  "vars": {
+    "ALLOWED_ORIGINS": "https://mailguard.pages.dev"
+  },
+
+  "env": {
+    // `wrangler deploy --env preview`: also allows Pages branch previews.
+    "preview": {
+      "ratelimits": [{ "name": "SCAN_LIMITER", "namespace_id": "1002", "simple": { "limit": 10, "period": 60 } }],
+      "vars": {
+        "ALLOWED_ORIGINS": "https://mailguard.pages.dev,https://*.mailguard.pages.dev"
+      }
+    }
+  }
+}
