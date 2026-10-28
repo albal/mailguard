@@ -71,7 +71,7 @@ export function App() {
             </button>
           </form>
           {inputError && (
-            <p id="domain-input-error" className="font-bold text-red-600">
+            <p id="domain-input-error" className="font-bold text-accent-text">
               {inputError}
             </p>
           )}
@@ -80,9 +80,9 @@ export function App() {
         {state.phase === "scanning" && <ScanSkeleton />}
         {state.phase === "done" && <ScanResults scan={state.scan} />}
         {state.phase === "nonexistent" && (
-          <section aria-label="Domain not found" className="border-4 border-black p-6 dark:border-white">
+          <section aria-label="Domain not found" className="border-4 border-ink p-6">
             <p className="text-4xl font-black">This domain doesn't exist</p>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-muted">
               DNS has no record of {displayDomain(state.response.domain)}. Check the spelling and try again.
             </p>
           </section>
@@ -93,7 +93,7 @@ export function App() {
           </p>
         )}
         {state.phase === "rate-limited" && (
-          <p role="alert" className="border-2 border-red-600 p-4 text-red-600">
+          <p role="alert" className="border-2 border-accent-text p-4 font-bold text-accent-text">
             You've run a lot of Scans in the last minute. Please wait a moment, then try again.
           </p>
         )}

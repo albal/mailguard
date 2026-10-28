@@ -13,7 +13,7 @@ export function SpfDetails({ check }: { check: SpfCheck }) {
         ))}
       </ul>
       {check.lookupCount !== null && (
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-muted">
           Uses {check.lookupCount} of {LOOKUP_LIMIT} DNS lookups
         </p>
       )}
