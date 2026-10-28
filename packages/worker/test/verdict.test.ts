@@ -24,11 +24,12 @@ const spfRecords: Record<Result, Records> = {
   inconclusive: { TXT: "error" },
 };
 
-/** DNS for example.com whose MX and SPF Checks get the given results. */
+/** DNS for example.com whose MX and SPF Checks get the given results (DMARC passes). */
 function dns(mx: Result, spf: Result): DnsScript {
   return {
     "example.com": { ...mxRecords[mx], ...spfRecords[spf] },
     "mx.example.com": { A: ["192.0.2.1"] },
+    "_dmarc.example.com": { TXT: ["v=DMARC1; p=reject"] },
   };
 }
 

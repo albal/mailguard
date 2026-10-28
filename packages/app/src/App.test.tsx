@@ -2,7 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { App } from "./App";
-import { aBlocklistCheck, aScan, anMxCheck, anSpfCheck, stubScanApi } from "./test/scan-api-stub";
+import { aBlocklistCheck, aDmarcCheck, aScan, anMxCheck, anSpfCheck, stubScanApi } from "./test/scan-api-stub";
 
 async function startScan(input: string) {
   render(<App />);
@@ -259,6 +259,60 @@ describe("Showing the SPF Check", () => {
     expect(within(spfCard).getByText("v=spf1 -all")).toBeInTheDocument();
     expect(within(spfCard).getByText("v=spf1 ~all")).toBeInTheDocument();
     expect(within(spfCard).queryByText(/DNS lookups/)).not.toBeInTheDocument();
+  });
+});
+
+describe("The DMARC card", () => {
+  it("shows the record and names the domain the policy came from", async () => {
+    stubScanApi(
+      aScan({
+        domain: "mail.example.com",
+        checks: [
+          aDmarcCheck({
+            result: "warning",
+            explanation: "This domain inherits the DMARC policy of example.com.",
+            policyDomain: "example.com",
+            policySource: "organizational-domain",
+            record: "v=DMARC1; p=reject; sp=none",
+            policy: "none",
+          }),
+        ],
+      }),
+    );
+
+    await startScan("mail.example.com");
+
+    const card = await screen.findByRole("article", { name: "DMARC" });
+    expect(within(card).getByTestId("check-result")).toHaveTextContent("! Warning");
+    expect(within(card).getByText("v=DMARC1; p=reject; sp=none")).toBeInTheDocument();
+    expect(within(card).getByText(/found at/i)).toHaveTextContent("Policy found at _dmarc.example.com (inherited from the Organizational Domain)");
+    expect(screen.getByRole("region", { name: "Security Protocols" })).toContainElement(card);
+  });
+
+  it("says when no DMARC record was found", async () => {
+    stubScanApi(
+      aScan({ checks: [aDmarcCheck({ result: "fail", policyDomain: null, policySource: null, record: null, policy: null })] }),
+    );
+
+    await startScan("example.com");
+
+    const card = await screen.findByRole("article", { name: "DMARC" });
+    expect(within(card).getByText(/no dmarc record found/i)).toBeInTheDocument();
+  });
+
+  it("says when the policy came from the Public Suffix Domain", async () => {
+    stubScanApi(
+      aScan({
+        checks: [
+          aDmarcCheck({ policyDomain: "bank.example", policySource: "public-suffix-domain", record: "v=DMARC1; p=reject; psd=y" }),
+        ],
+      }),
+    );
+
+    await startScan("mail.giant.bank.example");
+
+    const card = await screen.findByRole("article", { name: "DMARC" });
+    expect(within(card).getByText(/found at/i)).toHaveTextContent("Policy found at _dmarc.bank.example (inherited from the public suffix)");
   });
 });
 

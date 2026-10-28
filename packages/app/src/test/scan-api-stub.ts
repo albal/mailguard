@@ -1,4 +1,4 @@
-import type { BlocklistCheck, Check, MxCheck, Scan, ScanResponse, SpfCheck } from "@mailguard/shared";
+import type { BlocklistCheck, Check, DmarcCheck, MxCheck, Scan, ScanResponse, SpfCheck } from "@mailguard/shared";
 import { vi } from "vitest";
 
 /** A Scan as the Worker would return it, with sensible defaults. */
@@ -33,6 +33,20 @@ export function anSpfCheck(overrides: Partial<SpfCheck> = {}): Check {
     lookupCount: 1,
     allQualifier: "-",
     sendingIps: ["192.0.2.1"],
+    ...overrides,
+  };
+}
+
+export function aDmarcCheck(overrides: Partial<DmarcCheck> = {}): Check {
+  return {
+    kind: "dmarc",
+    result: "pass",
+    explanation: "This domain publishes its own DMARC policy.",
+    policyDomain: "example.com",
+    policySource: "domain",
+    record: "v=DMARC1; p=reject",
+    policy: "reject",
+    testMode: false,
     ...overrides,
   };
 }

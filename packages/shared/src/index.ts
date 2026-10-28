@@ -72,12 +72,36 @@ export interface BlocklistCheck extends CheckBase<"blocklists"> {
   lookups: BlocklistLookup[];
 }
 
+/** A DMARC policy value (`p=` / `sp=`). */
+export type DmarcPolicy = "none" | "quarantine" | "reject";
+
+/**
+ * Where the DMARC policy came from (RFC 9989 §4.10.1): the Domain's own
+ * record, or one inherited from its Organizational Domain or, failing that,
+ * from the Public Suffix Domain above it (a `psd=y` record).
+ */
+export type DmarcPolicySource = "domain" | "organizational-domain" | "public-suffix-domain";
+
+export interface DmarcCheck extends CheckBase<"dmarc"> {
+  /** The domain whose `_dmarc` record supplied the policy. Null when none was found. */
+  policyDomain: string | null;
+  /** Where the policy came from. Null when none was found. */
+  policySource: DmarcPolicySource | null;
+  /** The DMARC record as published, or null when none was found. */
+  record: string | null;
+  /** The policy that applies to the Domain (`sp=` over `p=` when inherited). Null when no policy applies. */
+  policy: DmarcPolicy | null;
+  /** True when the record asks for test mode (`t=y`), which applies one level below the stated policy. */
+  testMode: boolean;
+}
+
 /**
  * One entry per Check in a Scan. Each Check adds its own member to this
  * union (e.g. `| SpfCheck`), discriminated by `kind`.
  */
 export type Check = MxCheck
   | SpfCheck
+  | DmarcCheck
   | BlocklistCheck;
 
 export type CheckKind = Check["kind"];
