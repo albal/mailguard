@@ -5,7 +5,8 @@ declare global {
     /** Workers Rate Limiting binding: 10 Scans per minute per client IP. */
     SCAN_LIMITER: RateLimit;
     /**
-     * Comma-separated origins allowed to call the Scan API. An entry may use a
+     * Comma-separated origins allowed to call the Scan API cross-origin (the
+     * App itself is served same-origin, so needs no entry). An entry may use a
      * leading `*.` wildcard for one or more subdomain labels, e.g.
      * `https://*.mailguard.pages.dev`.
      */

@@ -101,7 +101,7 @@ The word "Secure" is deliberately not used: passing every Check does not make a 
 
 ### 3.1 Infrastructure
 
-* **Hosting:** Cloudflare Pages (frontend) and Cloudflare Workers (backend API).
+* **Hosting:** A single Cloudflare Worker at `mailguard.tsew.com` serves both the frontend (as Workers Static Assets, with single-page-application fallback) and the backend API under `/api/`. The page and the API therefore share one origin.
 * **DNS & Routing:** Cloudflare.
 
 ### 3.2 Frontend
@@ -162,7 +162,7 @@ Check Results are distinguished by icon and label, never by color alone:
 * **Performance:** The Worker returns a complete Scan in under 2.5 seconds; per-Check timeouts enforce this. Frontend bundle size must be kept minimal.
 * **Security:**
   * Rate limiting via the Workers Rate Limiting binding: 10 Scans per minute per IP, cached or not.
-  * CORS allows only the production Pages origin in production. Preview Workers additionally allow `*.mailguard.pages.dev`, configured via environment variable.
+  * The App calls the API same-origin, so it needs no CORS. For any other caller, CORS allows only the production origin (`https://mailguard.tsew.com`), configured via environment variable.
   * No email addresses reach the backend ([ADR-0001](./docs/adr/0001-only-the-domain-leaves-the-browser.md)).
 * **Accessibility:** ARIA labels on all inputs and buttons. Check Results are conveyed by icon and text, not color alone. The Black/White/Red palette meets WCAG AA contrast.
 * **Responsiveness:** Mobile-first; the grid collapses to a single column under 768px width.
