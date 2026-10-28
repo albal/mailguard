@@ -7,7 +7,7 @@ export interface Blocklist {
   name: string;
   /**
    * DNS zone queried. For a DQS list this is the zone after the key, e.g.
-   * `zen.dq.spamhaus.net` is queried as `<target>.<key>.zen.dq.spamhaus.net`.
+   * `zen.dq.spamhaus.net` is queried as `<subject>.<key>.zen.dq.spamhaus.net`.
    */
   zone: string;
   /** Whether it lists IP addresses (Sending and Receiving IPs) or domain names (the Domain). */
@@ -19,7 +19,7 @@ export interface Blocklist {
    * Worker secret. Without a key every lookup on it is Inconclusive.
    */
   dqs: boolean;
-  /** A-record answers that mean the target is listed. */
+  /** A-record answers that mean the subject is listed. */
   listedCodes: string[];
   /**
    * A-record answers that are neither a listing nor an error, e.g. reputation
@@ -88,23 +88,23 @@ export const blocklists: Blocklist[] = [
 ];
 
 /**
- * The DNS name to query for `target` on `blocklist` (RFC 5782 §2): an IPv4
+ * The DNS name to query for `subject` on `blocklist` (RFC 5782 §2): an IPv4
  * address with its octets reversed, an IPv6 address as 32 reversed nibbles, or
  * a domain name as is, followed by the DQS key (if any) and the zone.
  */
-export function queryNameOf(blocklist: Blocklist, target: string, dqsKey?: string): string {
+export function queryNameOf(blocklist: Blocklist, subject: string, dqsKey?: string): string {
   const zone = blocklist.dqs ? `${dqsKey}.${blocklist.zone}` : blocklist.zone;
-  return `${reversedTarget(blocklist, target)}.${zone}`;
+  return `${reversedSubject(blocklist, subject)}.${zone}`;
 }
 
 export function isIpv6(address: string): boolean {
   return address.includes(":");
 }
 
-function reversedTarget(blocklist: Blocklist, target: string): string {
-  if (blocklist.lists === "domain") return target;
-  if (!isIpv6(target)) return target.split(".").reverse().join(".");
-  return expandIpv6(target).split("").reverse().join(".");
+function reversedSubject(blocklist: Blocklist, subject: string): string {
+  if (blocklist.lists === "domain") return subject;
+  if (!isIpv6(subject)) return subject.split(".").reverse().join(".");
+  return expandIpv6(subject).split("").reverse().join(".");
 }
 
 /** An IPv6 address as its 32 hex nibbles, e.g. `2001:db8::1` → `20010db8000…0001`. */

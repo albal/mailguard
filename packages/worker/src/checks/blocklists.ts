@@ -1,4 +1,4 @@
-import type { BlocklistCheck, BlocklistLookup, BlocklistOutcome, BlocklistTargetRole, CheckResult } from "@mailguard/shared";
+import type { BlocklistCheck, BlocklistLookup, BlocklistOutcome, BlocklistSubjectRole, CheckResult } from "@mailguard/shared";
 import { blocklists, isIpv6, queryNameOf, type Blocklist } from "../blocklists";
 import { lookupMx, receivingIpsOf } from "../mx";
 import type { Resolver } from "../resolver";
@@ -15,17 +15,17 @@ export const blocklistCheck: CheckModule<"blocklists"> = {
 
   async run(context): Promise<BlocklistCheck> {
     const { resolver, dqsKey } = context;
-    const { targets, undetermined } = await targetsOf(context);
+    const { subjects, undetermined } = await subjectsOf(context);
 
     const lookups = await Promise.all(
-      targets.flatMap(({ target, roles }) =>
+      subjects.flatMap(({ subject, roles }) =>
         blocklists
           .filter((b) => (b.lists === "domain") === roles.includes("domain"))
           .map(async (blocklist): Promise<BlocklistLookup> => ({
             blocklist: blocklist.name,
-            target,
+            subject,
             roles,
-            outcome: await outcomeOf(resolver, blocklist, target, dqsKey),
+            outcome: await outcomeOf(resolver, blocklist, subject, dqsKey),
           })),
       ),
     );
@@ -66,9 +66,9 @@ export const blocklistCheck: CheckModule<"blocklists"> = {
 const UNDETERMINED =
   "Some Blocklist lookups failed, were refused or timed out, so MailGuard couldn't tell whether this domain's mail servers are listed.";
 
-interface Target {
-  target: string;
-  roles: BlocklistTargetRole[];
+interface Subject {
+  subject: string;
+  roles: BlocklistSubjectRole[];
 }
 
 /**
@@ -76,13 +76,13 @@ interface Target {
  * Receiving IPs (MX host addresses), each IP once with all its roles.
  * `undetermined` when a DNS failure may have hidden some IPs.
  */
-async function targetsOf({ domain, resolver }: CheckContext): Promise<{ targets: Target[]; undetermined: boolean }> {
+async function subjectsOf({ domain, resolver }: CheckContext): Promise<{ subjects: Subject[]; undetermined: boolean }> {
   const [spf, mx] = await Promise.all([lookupSpfRecord(resolver, domain), lookupMx(resolver, domain)]);
   const sending = spf.kind === "record" ? sendingIpsOf(spf.record) : [];
   const receiving = receivingIpsOf(mx);
 
-  const roles = new Map<string, BlocklistTargetRole[]>();
-  const add = (ip: string, role: BlocklistTargetRole) => {
+  const roles = new Map<string, BlocklistSubjectRole[]>();
+  const add = (ip: string, role: BlocklistSubjectRole) => {
     const existing = roles.get(ip) ?? [];
     if (!existing.includes(role)) roles.set(ip, [...existing, role]);
   };
@@ -90,17 +90,17 @@ async function targetsOf({ domain, resolver }: CheckContext): Promise<{ targets:
   receiving.addresses.forEach((ip) => add(ip, "receiving"));
 
   return {
-    targets: [{ target: domain, roles: ["domain"] }, ...[...roles].map(([target, r]) => ({ target, roles: r }))],
+    subjects: [{ subject: domain, roles: ["domain"] }, ...[...roles].map(([subject, r]) => ({ subject, roles: r }))],
     undetermined: spf.kind === "undetermined" || receiving.undetermined,
   };
 }
 
-async function outcomeOf(resolver: Resolver, blocklist: Blocklist, target: string, dqsKey?: string): Promise<BlocklistOutcome> {
-  if (blocklist.lists === "ip" && isIpv6(target) && !blocklist.ipv6) return "not-applicable";
+async function outcomeOf(resolver: Resolver, blocklist: Blocklist, subject: string, dqsKey?: string): Promise<BlocklistOutcome> {
+  if (blocklist.lists === "ip" && isIpv6(subject) && !blocklist.ipv6) return "not-applicable";
   // Without a key a DQS Blocklist can't be asked. Leaving it out would let a
   // misconfigured deployment report a better Verdict than it knows.
   if (blocklist.dqs && !dqsKey) return "inconclusive";
-  const answer = await resolver.resolve(queryNameOf(blocklist, target, dqsKey), "A");
+  const answer = await resolver.resolve(queryNameOf(blocklist, subject, dqsKey), "A");
   if (answer.kind === "nxdomain") return "not-listed";
   if (answer.kind !== "answers") return "inconclusive";
   if (answer.answers.some((code) => blocklist.listedCodes.includes(code))) return "listed";

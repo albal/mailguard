@@ -3,7 +3,7 @@ import { fakeResolver, type DnsScript } from "./fake-resolver";
 import { checkOf, scan, scanRequest, TEST_DQS_KEY } from "./scan-helpers";
 
 // Spamhaus through DQS (ADR-0002): DBL for the Domain, ZEN for Sending and
-// Receiving IPs, queried as `<target>.<key>.<zone>.dq.spamhaus.net`.
+// Receiving IPs, queried as `<subject>.<key>.<zone>.dq.spamhaus.net`.
 
 const ZEN = `${TEST_DQS_KEY}.zen.dq.spamhaus.net`;
 const DBL = `${TEST_DQS_KEY}.dbl.dq.spamhaus.net`;
@@ -18,7 +18,7 @@ describe("Spamhaus DBL (Domain)", () => {
     expect(blocklists.result).toBe("fail");
     expect(blocklists.lookups).toContainEqual({
       blocklist: "Spamhaus DBL",
-      target: "example.com",
+      subject: "example.com",
       roles: ["domain"],
       outcome: "listed",
     });
@@ -40,7 +40,7 @@ describe("Spamhaus ZEN (Sending and Receiving IPs)", () => {
     expect(blocklists.result).toBe("fail");
     expect(blocklists.lookups).toContainEqual({
       blocklist: "Spamhaus ZEN",
-      target: "2001:db8::1",
+      subject: "2001:db8::1",
       roles: ["sending"],
       outcome: "listed",
     });
@@ -113,8 +113,8 @@ describe("Spamhaus refusals and errors", () => {
     const blocklists = checkOf(result, "blocklists");
 
     expect(blocklists.lookups.filter((l) => l.blocklist.startsWith("Spamhaus"))).toEqual([
-      { blocklist: "Spamhaus DBL", target: "example.com", roles: ["domain"], outcome: "inconclusive" },
-      { blocklist: "Spamhaus ZEN", target: "192.0.2.10", roles: ["receiving"], outcome: "inconclusive" },
+      { blocklist: "Spamhaus DBL", subject: "example.com", roles: ["domain"], outcome: "inconclusive" },
+      { blocklist: "Spamhaus ZEN", subject: "192.0.2.10", roles: ["receiving"], outcome: "inconclusive" },
     ]);
     expect(blocklists.result).toBe("inconclusive");
     expect(result.verdict).toBe("incomplete");

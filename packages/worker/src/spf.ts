@@ -32,14 +32,14 @@ export type SpfQualifier = SpfAllQualifier;
 
 export type SpfMechanism =
   | { type: "all"; qualifier: SpfQualifier }
-  /** `include`, `exists`: `target` is required. `a`, `mx`, `ptr`: absent means the current domain. */
-  | { type: "include" | "exists" | "a" | "mx" | "ptr"; qualifier: SpfQualifier; target?: string }
+  /** `include`, `exists`: `domainSpec` is required. `a`, `mx`, `ptr`: absent means the current domain. */
+  | { type: "include" | "exists" | "a" | "mx" | "ptr"; qualifier: SpfQualifier; domainSpec?: string }
   /** `prefixLength` is absent when no CIDR suffix was given. */
   | { type: "ip4" | "ip6"; qualifier: SpfQualifier; address: string; prefixLength?: number };
 
 export interface SpfRecord {
   mechanisms: SpfMechanism[];
-  /** Target of the `redirect=` modifier, if any. */
+  /** Domain-spec of the `redirect=` modifier, if any. */
   redirect?: string;
 }
 
@@ -102,22 +102,22 @@ function parseMechanism(term: string): SpfMechanism | undefined {
       return rest === "" ? { type: "all", qualifier } : undefined;
     case "include":
     case "exists": {
-      const target = rest.startsWith(":") ? rest.slice(1) : "";
-      return isDomainSpec(target) ? { type: name, qualifier, target } : undefined;
+      const domainSpec = rest.startsWith(":") ? rest.slice(1) : "";
+      return isDomainSpec(domainSpec) ? { type: name, qualifier, domainSpec } : undefined;
     }
     case "ptr": {
       if (rest === "") return { type: name, qualifier };
-      const target = rest.startsWith(":") ? rest.slice(1) : "";
-      return isDomainSpec(target) ? { type: name, qualifier, target } : undefined;
+      const domainSpec = rest.startsWith(":") ? rest.slice(1) : "";
+      return isDomainSpec(domainSpec) ? { type: name, qualifier, domainSpec } : undefined;
     }
     case "a":
     case "mx": {
       const match = /^(?::([^/]+))?(?:\/(\d+))?(?:\/\/(\d+))?$/.exec(rest);
       if (!match) return undefined;
-      const [, target, cidr4, cidr6] = match;
-      if (target !== undefined && !isDomainSpec(target)) return undefined;
+      const [, domainSpec, cidr4, cidr6] = match;
+      if (domainSpec !== undefined && !isDomainSpec(domainSpec)) return undefined;
       if (!isPrefixLength(cidr4, 32) || !isPrefixLength(cidr6, 128)) return undefined;
-      return target === undefined ? { type: name, qualifier } : { type: name, qualifier, target };
+      return domainSpec === undefined ? { type: name, qualifier } : { type: name, qualifier, domainSpec };
     }
     case "ip4":
     case "ip6": {

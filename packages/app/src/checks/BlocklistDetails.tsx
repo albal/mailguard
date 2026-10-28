@@ -1,6 +1,6 @@
 import type { BlocklistCheck, BlocklistLookup } from "@mailguard/shared";
 
-/** What the target is to the Domain, e.g. "sending and receiving server" or "the domain". */
+/** What the subject is to the Domain, e.g. "sending and receiving server" or "the domain". */
 function roleOf(lookup: BlocklistLookup): string {
   if (lookup.roles.includes("domain")) return "the domain";
   return `${lookup.roles.join(" and ")} server`;
@@ -21,8 +21,8 @@ export function BlocklistDetails({ check }: { check: BlocklistCheck }) {
       {listed.length > 0 && (
         <ul aria-label="Listings" className="space-y-1 text-sm">
           {listed.map((l) => (
-            <li key={`${l.blocklist} ${l.target}`} className="border-l-4 border-accent-text pl-2 text-ink">
-              <span className="font-bold">{l.blocklist}</span> lists <span className="font-mono break-all">{l.target}</span>{" "}
+            <li key={`${l.blocklist} ${l.subject}`} className="border-l-4 border-accent-text pl-2 text-ink">
+              <span className="font-bold">{l.blocklist}</span> lists <span className="font-mono break-all">{l.subject}</span>{" "}
               ({roleOf(l)})
             </li>
           ))}
@@ -31,8 +31,8 @@ export function BlocklistDetails({ check }: { check: BlocklistCheck }) {
       {unchecked.length > 0 && (
         <ul aria-label="Lookups that couldn't be completed" className="space-y-1 text-sm text-muted">
           {unchecked.map((l) => (
-            <li key={`${l.blocklist} ${l.target}`}>
-              Couldn't check <span className="font-mono break-all">{l.target}</span> ({roleOf(l)}) on {l.blocklist}
+            <li key={`${l.blocklist} ${l.subject}`}>
+              Couldn't check <span className="font-mono break-all">{l.subject}</span> ({roleOf(l)}) on {l.blocklist}
             </li>
           ))}
         </ul>

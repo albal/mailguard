@@ -46,10 +46,10 @@ export interface SpfCheck extends CheckBase<"spf"> {
 }
 
 /** What was looked up on a Blocklist: an IP, by its role(s) for the Domain, or the Domain itself. */
-export type BlocklistTargetRole = "sending" | "receiving" | "domain";
+export type BlocklistSubjectRole = "sending" | "receiving" | "domain";
 
 /**
- * The outcome of looking one target up on one Blocklist. `not-applicable`
+ * The outcome of looking one subject up on one Blocklist. `not-applicable`
  * (e.g. an IPv6 address on an IPv4-only Blocklist) was not run and is left out
  * of the Verdict.
  */
@@ -59,16 +59,16 @@ export interface BlocklistLookup {
   /** The Blocklist's display name, e.g. `SpamCop`. */
   blocklist: string;
   /** The IP address, or the Domain for a domain-name Blocklist. */
-  target: string;
-  /** Every role the target plays: an IP can be both a Sending and a Receiving IP. */
-  roles: BlocklistTargetRole[];
+  subject: string;
+  /** Every role the subject plays: an IP can be both a Sending and a Receiving IP. */
+  roles: BlocklistSubjectRole[];
   outcome: BlocklistOutcome;
 }
 
 export interface BlocklistCheck extends CheckBase<"blocklists"> {
   /** Names of the Blocklists consulted (at least one applicable lookup), in configuration order. */
   blocklists: string[];
-  /** One entry per target and Blocklist, grouped by target. */
+  /** One entry per subject and Blocklist, grouped by subject. */
   lookups: BlocklistLookup[];
 }
 

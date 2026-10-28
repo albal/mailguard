@@ -58,9 +58,9 @@ export function aBlocklistCheck(overrides: Partial<BlocklistCheck> = {}): Check 
     explanation: "None of this domain's mail servers are listed on the 3 Blocklists checked.",
     blocklists: ["SpamCop", "PSBL", "Mailspike"],
     lookups: [
-      { blocklist: "SpamCop", target: "192.0.2.1", roles: ["receiving"], outcome: "not-listed" },
-      { blocklist: "PSBL", target: "192.0.2.1", roles: ["receiving"], outcome: "not-listed" },
-      { blocklist: "Mailspike", target: "192.0.2.1", roles: ["receiving"], outcome: "not-listed" },
+      { blocklist: "SpamCop", subject: "192.0.2.1", roles: ["receiving"], outcome: "not-listed" },
+      { blocklist: "PSBL", subject: "192.0.2.1", roles: ["receiving"], outcome: "not-listed" },
+      { blocklist: "Mailspike", subject: "192.0.2.1", roles: ["receiving"], outcome: "not-listed" },
     ],
     ...overrides,
   };

@@ -25,11 +25,11 @@ describe("Blocklist Check: Sending IPs", () => {
     const blocklists = checkOf(result, "blocklists");
     expect(blocklists.result).toBe("fail");
     expect(blocklists.blocklists).toEqual(["SpamCop", "PSBL", "Mailspike", "Spamhaus ZEN", "Spamhaus DBL"]);
-    expect(blocklists.lookups.filter((l) => l.target !== "example.com")).toEqual([
-      { blocklist: "SpamCop", target: "192.0.2.1", roles: ["sending"], outcome: "listed" },
-      { blocklist: "PSBL", target: "192.0.2.1", roles: ["sending"], outcome: "not-listed" },
-      { blocklist: "Mailspike", target: "192.0.2.1", roles: ["sending"], outcome: "not-listed" },
-      { blocklist: "Spamhaus ZEN", target: "192.0.2.1", roles: ["sending"], outcome: "not-listed" },
+    expect(blocklists.lookups.filter((l) => l.subject !== "example.com")).toEqual([
+      { blocklist: "SpamCop", subject: "192.0.2.1", roles: ["sending"], outcome: "listed" },
+      { blocklist: "PSBL", subject: "192.0.2.1", roles: ["sending"], outcome: "not-listed" },
+      { blocklist: "Mailspike", subject: "192.0.2.1", roles: ["sending"], outcome: "not-listed" },
+      { blocklist: "Spamhaus ZEN", subject: "192.0.2.1", roles: ["sending"], outcome: "not-listed" },
     ]);
     expect(blocklists.explanation).toMatch(/\S/);
   });
@@ -46,8 +46,8 @@ describe("Blocklist Check: Sending IPs", () => {
     });
 
     const blocklists = checkOf(result, "blocklists");
-    const ipLookups = blocklists.lookups.filter((l) => l.target !== "example.com");
-    expect([...new Set(ipLookups.map((l) => l.target))]).toEqual(["192.0.2.1", "192.0.2.2", "2001:db8::1"]);
+    const ipLookups = blocklists.lookups.filter((l) => l.subject !== "example.com");
+    expect([...new Set(ipLookups.map((l) => l.subject))]).toEqual(["192.0.2.1", "192.0.2.2", "2001:db8::1"]);
     expect(ipLookups.every((l) => l.roles.join() === "sending")).toBe(true);
   });
 
@@ -77,9 +77,9 @@ describe("Blocklist Check: Receiving IPs", () => {
 
     expect(blocklists.result).toBe("fail");
     expect(blocklists.lookups.filter((l) => l.outcome === "listed")).toEqual([
-      { blocklist: "PSBL", target: "192.0.2.20", roles: ["receiving"], outcome: "listed" },
+      { blocklist: "PSBL", subject: "192.0.2.20", roles: ["receiving"], outcome: "listed" },
     ]);
-    expect(blocklists.lookups.filter((l) => l.target === "192.0.2.10").map((l) => l.outcome)).toEqual([
+    expect(blocklists.lookups.filter((l) => l.subject === "192.0.2.10").map((l) => l.outcome)).toEqual([
       "not-listed",
       "not-listed",
       "not-listed",
@@ -97,7 +97,7 @@ describe("Blocklist Check: Receiving IPs", () => {
       "blocklists",
     );
 
-    expect(blocklists.lookups.filter((l) => l.target !== "example.com").map((l) => [l.target, l.roles])).toEqual([
+    expect(blocklists.lookups.filter((l) => l.subject !== "example.com").map((l) => [l.subject, l.roles])).toEqual([
       ["192.0.2.1", ["sending", "receiving"]],
       ["192.0.2.1", ["sending", "receiving"]],
       ["192.0.2.1", ["sending", "receiving"]],
@@ -195,11 +195,11 @@ describe("Blocklist Check: outcomes", () => {
     });
     const blocklists = checkOf(await scan("example.com", {}, { resolver }), "blocklists");
 
-    expect(blocklists.lookups.filter((l) => l.target !== "example.com")).toEqual([
-      { blocklist: "SpamCop", target: "2001:db8::25", roles: ["receiving"], outcome: "not-applicable" },
-      { blocklist: "PSBL", target: "2001:db8::25", roles: ["receiving"], outcome: "not-applicable" },
-      { blocklist: "Mailspike", target: "2001:db8::25", roles: ["receiving"], outcome: "not-applicable" },
-      { blocklist: "Spamhaus ZEN", target: "2001:db8::25", roles: ["receiving"], outcome: "not-listed" },
+    expect(blocklists.lookups.filter((l) => l.subject !== "example.com")).toEqual([
+      { blocklist: "SpamCop", subject: "2001:db8::25", roles: ["receiving"], outcome: "not-applicable" },
+      { blocklist: "PSBL", subject: "2001:db8::25", roles: ["receiving"], outcome: "not-applicable" },
+      { blocklist: "Mailspike", subject: "2001:db8::25", roles: ["receiving"], outcome: "not-applicable" },
+      { blocklist: "Spamhaus ZEN", subject: "2001:db8::25", roles: ["receiving"], outcome: "not-listed" },
     ]);
     expect(blocklists.result).toBe("pass");
     expect(blocklists.blocklists).toEqual(["Spamhaus ZEN", "Spamhaus DBL"]);

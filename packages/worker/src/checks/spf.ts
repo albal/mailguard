@@ -64,7 +64,7 @@ interface Walk {
  * Counts the DNS-querying terms of `record` and every record it includes or
  * redirects to, fetching them through the Resolver, and finds the effective
  * `all` (following `redirect=` when the record has no `all`). Stops at the
- * first problem or once over the limit. Macro targets are counted but not followed.
+ * first problem or once over the limit. Macro domain-specs are counted but not followed.
  */
 async function walkLookups(
   resolver: Resolver,
@@ -75,8 +75,8 @@ async function walkLookups(
   for (const mechanism of record.mechanisms) {
     if (!LOOKUP_TYPES.has(mechanism.type)) continue;
     if (!count(walk)) return done();
-    if (mechanism.type !== "include" || !mechanism.target || hasMacro(mechanism.target)) continue;
-    const included = await follow(resolver, mechanism.target, "includes", walk);
+    if (mechanism.type !== "include" || !mechanism.domainSpec || hasMacro(mechanism.domainSpec)) continue;
+    const included = await follow(resolver, mechanism.domainSpec, "includes", walk);
     if (!included) return done();
     await walkLookups(resolver, included, walk);
     if (walk.problem || walk.lookups > LOOKUP_LIMIT) return done();
@@ -91,9 +91,9 @@ async function walkLookups(
   return done(allQualifier);
 }
 
-/** Macro targets (`%{i}…`) depend on the message being checked, so they can't be followed statically. */
-function hasMacro(target: string): boolean {
-  return target.includes("%");
+/** Macro domain-specs (`%{i}…`) depend on the message being checked, so they can't be followed statically. */
+function hasMacro(domainSpec: string): boolean {
+  return domainSpec.includes("%");
 }
 
 /** Counts one DNS-querying term; false once over the limit. */
@@ -102,20 +102,20 @@ function count(walk: Walk): boolean {
   return walk.lookups <= LOOKUP_LIMIT;
 }
 
-/** Fetches the SPF record at an include/redirect target, recording any problem on `walk`. */
-async function follow(resolver: Resolver, target: string, how: string, walk: Walk): Promise<SpfRecord | undefined> {
-  const found = await lookupSpfRecord(resolver, target);
+/** Fetches the SPF record at an include/redirect domain, recording any problem on `walk`. */
+async function follow(resolver: Resolver, name: string, how: string, walk: Walk): Promise<SpfRecord | undefined> {
+  const found = await lookupSpfRecord(resolver, name);
   if (found.kind === "record") return found.record;
   walk.problem =
     found.kind === "undetermined"
       ? "undetermined"
       : {
-          explanation: `This domain's SPF record ${how} ${target}, which ${TARGET_PROBLEMS[found.kind]}, so receivers treat the SPF record as broken.`,
+          explanation: `This domain's SPF record ${how} ${name}, which ${FOLLOWED_RECORD_PROBLEMS[found.kind]}, so receivers treat the SPF record as broken.`,
         };
   return undefined;
 }
 
-const TARGET_PROBLEMS = {
+const FOLLOWED_RECORD_PROBLEMS = {
   none: "has no SPF record",
   multiple: "publishes more than one SPF record",
   invalid: "has an SPF syntax error",

@@ -338,11 +338,11 @@ describe("Showing the Blocklist Check", () => {
             explanation: "There are 3 listings for this domain's mail servers or name.",
             blocklists: ["Spamhaus DBL", "SpamCop", "PSBL"],
             lookups: [
-              { blocklist: "Spamhaus DBL", target: "example.com", roles: ["domain"], outcome: "listed" },
-              { blocklist: "SpamCop", target: "192.0.2.1", roles: ["sending"], outcome: "listed" },
-              { blocklist: "PSBL", target: "192.0.2.1", roles: ["sending"], outcome: "not-listed" },
-              { blocklist: "SpamCop", target: "192.0.2.2", roles: ["sending", "receiving"], outcome: "listed" },
-              { blocklist: "PSBL", target: "2001:db8::1", roles: ["receiving"], outcome: "not-applicable" },
+              { blocklist: "Spamhaus DBL", subject: "example.com", roles: ["domain"], outcome: "listed" },
+              { blocklist: "SpamCop", subject: "192.0.2.1", roles: ["sending"], outcome: "listed" },
+              { blocklist: "PSBL", subject: "192.0.2.1", roles: ["sending"], outcome: "not-listed" },
+              { blocklist: "SpamCop", subject: "192.0.2.2", roles: ["sending", "receiving"], outcome: "listed" },
+              { blocklist: "PSBL", subject: "2001:db8::1", roles: ["receiving"], outcome: "not-applicable" },
             ],
           }),
         ],
@@ -369,8 +369,8 @@ describe("Showing the Blocklist Check", () => {
           aBlocklistCheck({
             result: "inconclusive",
             lookups: [
-              { blocklist: "SpamCop", target: "192.0.2.1", roles: ["receiving"], outcome: "inconclusive" },
-              { blocklist: "PSBL", target: "192.0.2.1", roles: ["receiving"], outcome: "not-listed" },
+              { blocklist: "SpamCop", subject: "192.0.2.1", roles: ["receiving"], outcome: "inconclusive" },
+              { blocklist: "PSBL", subject: "192.0.2.1", roles: ["receiving"], outcome: "not-listed" },
             ],
             blocklists: ["SpamCop", "PSBL"],
           }),
