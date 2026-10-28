@@ -64,6 +64,38 @@ describe("DoH Resolver", () => {
     expect(mx.nullMx).toBe(true);
   });
 
+  it("reads TXT answers, joining each record's character-strings with no separator", async () => {
+    const doh = fakeDoh({
+      "example.com TXT": {
+        Status: 0,
+        Answer: [
+          { name: "example.com", type: TYPE.TXT, TTL: 300, data: '"google-site-verification=\\"abc\\""' },
+          {
+            name: "example.com",
+            type: TYPE.TXT,
+            TTL: 300,
+            // A record over 255 bytes arrives as several quoted strings in one answer.
+            data: '"v=spf1 ip4:192.0.2.1 include:_spf.exa" "mple.net\\032~all"',
+          },
+        ],
+      },
+      "_spf.example.net TXT": {
+        Status: 0,
+        Answer: [
+          { name: "_spf.example.net", type: TYPE.CNAME, TTL: 300, data: "spf.example.org." },
+          { name: "spf.example.org", type: TYPE.TXT, TTL: 300, data: '"v=spf1 ip4:192.0.2.0/24 -all"' },
+        ],
+      },
+    });
+
+    const spf = checkOf(await scan("example.com", {}, { resolver: createDohResolver({ fetch: doh.fetch }) }), "spf");
+
+    expect(spf.records).toEqual(["v=spf1 ip4:192.0.2.1 include:_spf.example.net ~all"]);
+    expect(spf.result).toBe("pass");
+    expect(spf.lookupCount).toBe(1);
+    expect(spf.sendingIps).toEqual(["192.0.2.1"]);
+  });
+
   it("treats NXDOMAIN for MX hosts as not resolving", async () => {
     const doh = fakeDoh({
       "example.com MX": {

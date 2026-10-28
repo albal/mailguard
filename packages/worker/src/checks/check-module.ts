@@ -9,14 +9,14 @@ export interface CheckContext {
 
 /**
  * One Check the Scan runs. To add a Check: implement this in its own file and
- * add it to the list in `./index.ts`.
+ * add it to the list in `./index.ts`. `CheckModule` with no argument is the
+ * union of every kind's module.
  */
-export interface CheckModule<K extends CheckKind = CheckKind> {
-  kind: K;
-  run(context: CheckContext): Promise<Extract<Check, { kind: K }>>;
-  /** The Check as reported when it could not determine an answer (e.g. it timed out). */
-  inconclusive(explanation: string): Extract<Check, { kind: K }>;
-}
-
-/** Any one Check module, whatever its kind (a union, so each keeps its own kind). */
-export type AnyCheckModule = { [K in CheckKind]: CheckModule<K> }[CheckKind];
+export type CheckModule<K extends CheckKind = CheckKind> = K extends CheckKind
+  ? {
+      kind: K;
+      run(context: CheckContext): Promise<Extract<Check, { kind: K }>>;
+      /** The Check as reported when it could not determine an answer (e.g. it timed out). */
+      inconclusive(explanation: string): Extract<Check, { kind: K }>;
+    }
+  : never;

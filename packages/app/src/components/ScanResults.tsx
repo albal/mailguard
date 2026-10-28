@@ -1,5 +1,6 @@
 import type { Scan } from "@mailguard/shared";
 import { checkViews, type CheckGroup } from "../checks";
+import { displayDomain } from "../domain";
 import { verdictLabels } from "../presentation";
 import { CheckCard } from "./CheckCard";
 
@@ -11,16 +12,16 @@ const groups: { group: CheckGroup; title: string }[] = [
 export function ScanResults({ scan }: { scan: Scan }) {
   return (
     <div className="space-y-6">
-      <section aria-labelledby="verdict-heading" className="border-4 border-black p-6 dark:border-white">
-        <h2 id="verdict-heading" className="text-sm font-bold uppercase tracking-wide text-gray-500">
-          Verdict for {scan.domain}
+      <section aria-labelledby="verdict-heading" className="border-4 border-ink p-6">
+        <h2 id="verdict-heading" className="text-sm font-bold uppercase tracking-wide text-muted">
+          Verdict for {displayDomain(scan.domain)}
         </h2>
         <p
-          className={`text-4xl font-black ${scan.verdict === "high-risk" || scan.verdict === "at-risk" ? "text-red-600" : ""}`}
+          className={`text-4xl font-black ${scan.verdict === "high-risk" || scan.verdict === "at-risk" ? "text-accent-text" : ""}`}
         >
           {verdictLabels[scan.verdict]}
         </p>
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-muted">
           Scanned <time dateTime={scan.scannedAt}>{new Date(scan.scannedAt).toLocaleString()}</time>
         </p>
       </section>

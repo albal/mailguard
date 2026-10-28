@@ -10,7 +10,7 @@ export function CheckCard({ check }: { check: Check }) {
   return (
     <article
       aria-labelledby={titleId}
-      className="space-y-3 border-2 border-black p-4 dark:border-white"
+      className="space-y-3 border-2 border-ink p-4"
     >
       <header className="flex items-center justify-between gap-2">
         <h3 id={titleId} className="text-lg font-black">

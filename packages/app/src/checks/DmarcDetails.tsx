@@ -8,12 +8,12 @@ const sourceNotes: Record<DmarcPolicySource, string> = {
 
 export function DmarcDetails({ check }: { check: DmarcCheck }) {
   if (check.policyDomain === null) {
-    return <p className="font-mono text-sm text-gray-500">No DMARC record found.</p>;
+    return <p className="font-mono text-sm text-muted">No DMARC record found.</p>;
   }
 
   return (
     <div className="space-y-1">
-      <p className="text-sm text-gray-500">
+      <p className="text-sm text-muted">
         Policy found at <span className="font-mono">_dmarc.{check.policyDomain}</span>
         {check.policySource && sourceNotes[check.policySource]}
       </p>

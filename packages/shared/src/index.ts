@@ -31,6 +31,20 @@ export interface MxCheck extends CheckBase<"mx"> {
   implicitMxAddresses: string[];
 }
 
+/** The qualifier on an SPF record's `all` mechanism. */
+export type SpfAllQualifier = "+" | "-" | "~" | "?";
+
+export interface SpfCheck extends CheckBase<"spf"> {
+  /** Every SPF record (`v=spf1 …`) published at the Domain: normally exactly one. */
+  records: string[];
+  /** DNS lookups the record needs, counting nested `include:`/`redirect=`; null if not counted. */
+  lookupCount: number | null;
+  /** Qualifier of the effective `all` (following `redirect=`), or null when there is none. */
+  allQualifier: SpfAllQualifier | null;
+  /** Sending IPs: the single-address `ip4:`/`ip6:` entries of the Domain's own record. */
+  sendingIps: string[];
+}
+
 /** A DMARC policy value (`p=` / `sp=`). */
 export type DmarcPolicy = "none" | "quarantine" | "reject";
 
@@ -58,8 +72,8 @@ export interface DmarcCheck extends CheckBase<"dmarc"> {
  * One entry per Check in a Scan. Each Check adds its own member to this
  * union (e.g. `| SpfCheck`), discriminated by `kind`.
  */
-export type Check =
-  | MxCheck
+export type Check = MxCheck
+  | SpfCheck
   | DmarcCheck;
 
 export type CheckKind = Check["kind"];
@@ -77,3 +91,17 @@ export interface Scan {
 export interface ScanError {
   error: string;
 }
+
+/**
+ * The 200 body of `GET /api/scan` when the Domain doesn't exist (NXDOMAIN).
+ * No Checks run and there is no Verdict.
+ */
+export interface NonexistentDomain {
+  domain: string;
+  /** ISO-8601 time the existence check was performed. */
+  scannedAt: string;
+  exists: false;
+}
+
+/** Every 200 body of `GET /api/scan`. Tell them apart with `"exists" in body`. */
+export type ScanResponse = Scan | NonexistentDomain;

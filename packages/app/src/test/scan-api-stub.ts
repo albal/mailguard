@@ -1,4 +1,4 @@
-import type { Check, DmarcCheck, MxCheck, Scan } from "@mailguard/shared";
+import type { Check, DmarcCheck, MxCheck, Scan, ScanResponse, SpfCheck } from "@mailguard/shared";
 import { vi } from "vitest";
 
 /** A Scan as the Worker would return it, with sensible defaults. */
@@ -24,6 +24,19 @@ export function anMxCheck(overrides: Partial<MxCheck> = {}): Check {
   };
 }
 
+export function anSpfCheck(overrides: Partial<SpfCheck> = {}): Check {
+  return {
+    kind: "spf",
+    result: "pass",
+    explanation: "This domain's SPF record lists the servers allowed to send its email.",
+    records: ["v=spf1 ip4:192.0.2.1 include:_spf.example.net -all"],
+    lookupCount: 1,
+    allQualifier: "-",
+    sendingIps: ["192.0.2.1"],
+    ...overrides,
+  };
+}
+
 export function aDmarcCheck(overrides: Partial<DmarcCheck> = {}): Check {
   return {
     kind: "dmarc",
@@ -42,8 +55,8 @@ export function aDmarcCheck(overrides: Partial<DmarcCheck> = {}): Check {
  * Stubs `fetch` for `/api/scan`. Pass a Scan to answer at once, or nothing to
  * get a request that stays pending until `respond` is called.
  */
-export function stubScanApi(scan?: Scan) {
-  let respond: (scan: Scan) => void = () => {};
+export function stubScanApi(scan?: ScanResponse) {
+  let respond: (body: ScanResponse) => void = () => {};
   const pending = new Promise<Response>((resolve) => {
     respond = (body) => resolve(Response.json(body));
   });
