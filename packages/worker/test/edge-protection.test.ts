@@ -14,7 +14,44 @@ describe("Scan caching", () => {
     expect(second.scannedAt).toBe(first.scannedAt);
     expect(second.scannedAt).toBe(new Date(SCAN_TIME).toISOString());
   });
+
+  it("shares one entry between spellings of the same Domain", async () => {
+    const dns = { "cache-spelling.test": { MX: ["0 ."] } };
+    await scan("cache-spelling.test", dns, { now: () => SCAN_TIME, cache: caches.default });
+
+    const second = await scan("Cache-Spelling.TEST.", dns, { now: () => SCAN_TIME + 60_000, cache: caches.default });
+
+    expect(second.scannedAt).toBe(new Date(SCAN_TIME).toISOString());
+  });
+
+  it("caches the 200 for a Domain that doesn't exist", async () => {
+    const url = scanUrl("cache-nxdomain.test");
+    const dns = { "cache-nxdomain.test": "nxdomain" } as const;
+    const first = await scanRequest(url, dns, { now: () => SCAN_TIME, cache: caches.default });
+    await first.body?.cancel();
+
+    const second = await scanRequest(url, {}, { now: () => SCAN_TIME + 60_000, cache: caches.default });
+
+    expect(second.status).toBe(200);
+    expect(await second.json()).toEqual({
+      domain: "cache-nxdomain.test",
+      scannedAt: new Date(SCAN_TIME).toISOString(),
+      exists: false,
+    });
+  });
+
+  it("doesn't cache the 400 for an invalid Domain", async () => {
+    const response = await scanRequest(scanUrl("not a domain"), {}, { cache: caches.default });
+    await response.body?.cancel();
+
+    expect(response.status).toBe(400);
+    expect(response.headers.get("cache-control")).toBeNull();
+  });
 });
+
+function scanUrl(domain: string): string {
+  return `https://api.mailguard.test/api/scan?domain=${encodeURIComponent(domain)}`;
+}
 
 /** A rate limiter that records its keys and allows only the first `allowed` calls. */
 function fakeLimiter(allowed: number) {
