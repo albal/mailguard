@@ -1,6 +1,7 @@
 import type { Check, CheckKind } from "@mailguard/shared";
 import type { ComponentType } from "react";
 import { MxDetails } from "./MxDetails";
+import { DmarcDetails } from "./DmarcDetails";
 
 export type CheckGroup = "security-protocols" | "reputation";
 
@@ -17,4 +18,5 @@ interface CheckView<K extends CheckKind> {
  */
 export const checkViews: { [K in CheckKind]: CheckView<K> } = {
   mx: { title: "MX", group: "security-protocols", Details: MxDetails },
+  dmarc: { title: "DMARC", group: "security-protocols", Details: DmarcDetails },
 };

@@ -1,4 +1,4 @@
-import type { Check, MxCheck, Scan } from "@mailguard/shared";
+import type { Check, DmarcCheck, MxCheck, Scan } from "@mailguard/shared";
 import { vi } from "vitest";
 
 /** A Scan as the Worker would return it, with sensible defaults. */
@@ -20,6 +20,20 @@ export function anMxCheck(overrides: Partial<MxCheck> = {}): Check {
     nullMx: false,
     hosts: [{ preference: 10, exchange: "mx.example.com", addresses: ["192.0.2.1"] }],
     implicitMxAddresses: [],
+    ...overrides,
+  };
+}
+
+export function aDmarcCheck(overrides: Partial<DmarcCheck> = {}): Check {
+  return {
+    kind: "dmarc",
+    result: "pass",
+    explanation: "This domain publishes its own DMARC policy.",
+    policyDomain: "example.com",
+    inherited: false,
+    record: "v=DMARC1; p=reject",
+    policy: "reject",
+    pct: 100,
     ...overrides,
   };
 }
