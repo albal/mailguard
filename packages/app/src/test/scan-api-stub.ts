@@ -1,4 +1,4 @@
-import type { Check, MxCheck, Scan, ScanResponse, SpfCheck } from "@mailguard/shared";
+import type { BlocklistCheck, Check, MxCheck, Scan, ScanResponse, SpfCheck } from "@mailguard/shared";
 import { vi } from "vitest";
 
 /** A Scan as the Worker would return it, with sensible defaults. */
@@ -33,6 +33,21 @@ export function anSpfCheck(overrides: Partial<SpfCheck> = {}): Check {
     lookupCount: 1,
     allQualifier: "-",
     sendingIps: ["192.0.2.1"],
+    ...overrides,
+  };
+}
+
+export function aBlocklistCheck(overrides: Partial<BlocklistCheck> = {}): Check {
+  return {
+    kind: "blocklists",
+    result: "pass",
+    explanation: "None of this domain's mail servers are listed on the 3 Blocklists checked.",
+    blocklists: ["SpamCop", "PSBL", "Mailspike"],
+    lookups: [
+      { blocklist: "SpamCop", target: "192.0.2.1", roles: ["receiving"], outcome: "not-listed" },
+      { blocklist: "PSBL", target: "192.0.2.1", roles: ["receiving"], outcome: "not-listed" },
+      { blocklist: "Mailspike", target: "192.0.2.1", roles: ["receiving"], outcome: "not-listed" },
+    ],
     ...overrides,
   };
 }

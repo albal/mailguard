@@ -10,6 +10,7 @@ npm workspaces:
 - `packages/worker`: the Cloudflare Worker serving `GET /api/scan?domain=…`.
   - `src/resolver.ts`: the Resolver interface (the only way to reach DNS); `src/doh-resolver.ts` is the production implementation (Cloudflare DoH).
   - `src/checks/`: one module per Check; `src/checks/index.ts` is the list of Checks a Scan runs.
+  - `src/blocklists.ts`: the single Blocklist configuration. Add a Blocklist by adding an entry; DQS entries need the `SPAMHAUS_DQS_KEY` secret.
 - `packages/app`: the React single-page app (Vite + Tailwind).
   - `src/checks/`: how each Check is shown; `src/checks/index.tsx` maps each Check kind to its title, column and details component.
 

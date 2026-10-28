@@ -2,7 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { App } from "./App";
-import { aScan, anMxCheck, anSpfCheck, stubScanApi } from "./test/scan-api-stub";
+import { aBlocklistCheck, aScan, anMxCheck, anSpfCheck, stubScanApi } from "./test/scan-api-stub";
 
 async function startScan(input: string) {
   render(<App />);
@@ -259,5 +259,79 @@ describe("Showing the SPF Check", () => {
     expect(within(spfCard).getByText("v=spf1 -all")).toBeInTheDocument();
     expect(within(spfCard).getByText("v=spf1 ~all")).toBeInTheDocument();
     expect(within(spfCard).queryByText(/DNS lookups/)).not.toBeInTheDocument();
+  });
+});
+
+describe("Showing the Blocklist Check", () => {
+  it("shows the Blocklists under Reputation with how many were checked and how many listings", async () => {
+    stubScanApi(aScan({ checks: [anMxCheck(), aBlocklistCheck()] }));
+
+    await startScan("example.com");
+
+    const reputation = await screen.findByRole("region", { name: "Reputation" });
+    const card = within(reputation).getByRole("article", { name: "Blocklists" });
+    expect(within(card).getByTestId("check-result")).toHaveTextContent("✓ Pass");
+    expect(within(card).getByText("Checked against 3 Blocklists, 0 listings")).toBeInTheDocument();
+  });
+
+  it("names the Blocklist and the role of each listed IP or Domain", async () => {
+    stubScanApi(
+      aScan({
+        verdict: "high-risk",
+        checks: [
+          aBlocklistCheck({
+            result: "fail",
+            explanation: "There are 3 listings for this domain's mail servers or name.",
+            blocklists: ["Spamhaus DBL", "SpamCop", "PSBL"],
+            lookups: [
+              { blocklist: "Spamhaus DBL", target: "example.com", roles: ["domain"], outcome: "listed" },
+              { blocklist: "SpamCop", target: "192.0.2.1", roles: ["sending"], outcome: "listed" },
+              { blocklist: "PSBL", target: "192.0.2.1", roles: ["sending"], outcome: "not-listed" },
+              { blocklist: "SpamCop", target: "192.0.2.2", roles: ["sending", "receiving"], outcome: "listed" },
+              { blocklist: "PSBL", target: "2001:db8::1", roles: ["receiving"], outcome: "not-applicable" },
+            ],
+          }),
+        ],
+      }),
+    );
+
+    await startScan("example.com");
+
+    const card = await screen.findByRole("article", { name: "Blocklists" });
+    expect(within(card).getByText("Checked against 3 Blocklists, 3 listings")).toBeInTheDocument();
+    const listings = within(within(card).getByRole("list", { name: "Listings" })).getAllByRole("listitem");
+    expect(listings.map((item) => item.textContent)).toEqual([
+      "Spamhaus DBL lists example.com (the domain)",
+      "SpamCop lists 192.0.2.1 (sending server)",
+      "SpamCop lists 192.0.2.2 (sending and receiving server)",
+    ]);
+  });
+
+  it("says which lookups couldn't be completed", async () => {
+    stubScanApi(
+      aScan({
+        verdict: "incomplete",
+        checks: [
+          aBlocklistCheck({
+            result: "inconclusive",
+            lookups: [
+              { blocklist: "SpamCop", target: "192.0.2.1", roles: ["receiving"], outcome: "inconclusive" },
+              { blocklist: "PSBL", target: "192.0.2.1", roles: ["receiving"], outcome: "not-listed" },
+            ],
+            blocklists: ["SpamCop", "PSBL"],
+          }),
+        ],
+      }),
+    );
+
+    await startScan("example.com");
+
+    const card = await screen.findByRole("article", { name: "Blocklists" });
+    expect(within(card).getByText("Checked against 2 Blocklists, 0 listings")).toBeInTheDocument();
+    const unchecked = within(card).getByRole("list", { name: "Lookups that couldn't be completed" });
+    expect(within(unchecked).getAllByRole("listitem").map((item) => item.textContent)).toEqual([
+      "Couldn't check 192.0.2.1 (receiving server) on SpamCop",
+    ]);
+    expect(within(card).queryByRole("list", { name: "Listings" })).not.toBeInTheDocument();
   });
 });
