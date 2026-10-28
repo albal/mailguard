@@ -74,3 +74,20 @@ export function checkOf<K extends CheckKind>(scan: Scan, kind: K): Extract<Check
   if (!check) throw new Error(`Scan has no ${kind} Check`);
   return check as Extract<Check, { kind: K }>;
 }
+
+/**
+ * Scans `domain` from a page at `origin` and returns the response's
+ * `access-control-allow-origin` header. ALLOWED_ORIGINS is the test
+ * project's configured value unless `env` overrides it.
+ */
+export async function allowOriginFor(
+  origin: string,
+  { domain, env, deps }: { domain: string; env?: Partial<Env>; deps?: Partial<Deps> },
+): Promise<string | null> {
+  const response = await scanRequest(`https://api.mailguard.test/api/scan?domain=${domain}`, {}, deps, {
+    headers: { origin },
+    env,
+  });
+  await response.body?.cancel();
+  return response.headers.get("access-control-allow-origin");
+}

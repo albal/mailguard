@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { DnsScript } from "./fake-resolver";
-import { SCAN_TIME, scan, scanRequest } from "./scan-helpers";
+import { allowOriginFor, SCAN_TIME, scan, scanRequest } from "./scan-helpers";
 
 // The Cache API is shared by every test in this file, so each test scans its
 // own Domain.
@@ -120,54 +120,28 @@ describe("Rate limiting", () => {
   });
 });
 
+// ALLOWED_ORIGINS here is the production value from wrangler.jsonc. The
+// preview environment's is tested in preview/cors.test.ts.
 const PRODUCTION_ORIGIN = "https://mailguard.pages.dev";
-const PREVIEW_ORIGINS = "https://mailguard.pages.dev,https://*.mailguard.pages.dev";
 
-async function allowOriginFor(
-  origin: string,
-  { domain, env, deps }: { domain: string; env?: Partial<Env>; deps?: Parameters<typeof scanRequest>[2] },
-) {
-  const response = await scanRequest(`https://api.mailguard.test/api/scan?domain=${domain}`, {}, deps, {
-    headers: { origin },
-    env,
-  });
-  await response.body?.cancel();
-  return response.headers.get("access-control-allow-origin");
-}
-
-describe("CORS", () => {
+describe("CORS (production configuration)", () => {
   it("allows the production Pages origin", async () => {
-    const env = { ALLOWED_ORIGINS: PRODUCTION_ORIGIN };
-
-    expect(await allowOriginFor(PRODUCTION_ORIGIN, { domain: "cors-prod.test", env })).toBe(PRODUCTION_ORIGIN);
+    expect(await allowOriginFor(PRODUCTION_ORIGIN, { domain: "cors-prod.test" })).toBe(PRODUCTION_ORIGIN);
   });
 
-  it("sends no allow header to any other origin", async () => {
-    const env = { ALLOWED_ORIGINS: PRODUCTION_ORIGIN };
-
-    expect(await allowOriginFor("https://evil.example", { domain: "cors-deny.test", env })).toBeNull();
-    expect(await allowOriginFor("https://feature-x.mailguard.pages.dev", { domain: "cors-deny.test", env })).toBeNull();
-  });
-
-  it("allows Pages branch previews when the preview origins are configured", async () => {
-    const env = { ALLOWED_ORIGINS: PREVIEW_ORIGINS };
-    const preview = "https://feature-x.mailguard.pages.dev";
-
-    expect(await allowOriginFor(preview, { domain: "cors-preview.test", env })).toBe(preview);
-    expect(await allowOriginFor("https://mailguard.pages.dev.evil.example", { domain: "cors-preview.test", env })).toBeNull();
-    expect(await allowOriginFor("https://evilmailguard.pages.dev", { domain: "cors-preview.test", env })).toBeNull();
+  it("sends no allow header to any other origin, including Pages branch previews", async () => {
+    expect(await allowOriginFor("https://evil.example", { domain: "cors-deny.test" })).toBeNull();
+    expect(await allowOriginFor("https://feature-x.mailguard.pages.dev", { domain: "cors-deny.test" })).toBeNull();
+    expect(await allowOriginFor("http://mailguard.pages.dev", { domain: "cors-deny.test" })).toBeNull();
   });
 
   it("allows the caller's origin on cached Scans and on 429s, so the App can read them", async () => {
-    const env = { ALLOWED_ORIGINS: PRODUCTION_ORIGIN };
     const cached = { cache: caches.default };
-    await allowOriginFor("https://evil.example", { domain: "cors-cached.test", env, deps: cached });
+    await allowOriginFor("https://evil.example", { domain: "cors-cached.test", deps: cached });
 
-    expect(await allowOriginFor(PRODUCTION_ORIGIN, { domain: "cors-cached.test", env, deps: cached })).toBe(
+    expect(await allowOriginFor(PRODUCTION_ORIGIN, { domain: "cors-cached.test", deps: cached })).toBe(PRODUCTION_ORIGIN);
+    expect(await allowOriginFor(PRODUCTION_ORIGIN, { domain: "cors-429.test", deps: { limiter: fakeLimiter(0) } })).toBe(
       PRODUCTION_ORIGIN,
     );
-    expect(
-      await allowOriginFor(PRODUCTION_ORIGIN, { domain: "cors-429.test", env, deps: { limiter: fakeLimiter(0) } }),
-    ).toBe(PRODUCTION_ORIGIN);
   });
 });
