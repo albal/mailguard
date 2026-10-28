@@ -1,4 +1,4 @@
-import type { Check, MxCheck, Scan } from "@mailguard/shared";
+import type { Check, MxCheck, Scan, SpfCheck } from "@mailguard/shared";
 import { vi } from "vitest";
 
 /** A Scan as the Worker would return it, with sensible defaults. */
@@ -20,6 +20,19 @@ export function anMxCheck(overrides: Partial<MxCheck> = {}): Check {
     nullMx: false,
     hosts: [{ preference: 10, exchange: "mx.example.com", addresses: ["192.0.2.1"] }],
     implicitMxAddresses: [],
+    ...overrides,
+  };
+}
+
+export function anSpfCheck(overrides: Partial<SpfCheck> = {}): Check {
+  return {
+    kind: "spf",
+    result: "pass",
+    explanation: "This domain's SPF record lists the servers allowed to send its email.",
+    records: ["v=spf1 ip4:192.0.2.1 include:_spf.example.net -all"],
+    lookupCount: 1,
+    allQualifier: "-",
+    sendingIps: ["192.0.2.1"],
     ...overrides,
   };
 }
