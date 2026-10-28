@@ -6,21 +6,40 @@ import { fakeResolver, type DnsScript } from "./fake-resolver";
 
 export const SCAN_TIME = Date.UTC(2026, 9, 28, 12, 0, 0);
 
-/** Sends a real Request through the Worker's fetch handler with a scripted Resolver. */
+/**
+ * A cache that never hits, so tests scanning the same Domain don't see each
+ * other's results. Edge-cache tests pass `cache: caches.default` instead.
+ */
+export const noCache = {
+  match: async () => undefined,
+  put: async () => {},
+  delete: async () => false,
+} as unknown as Cache;
+
+/** A rate limiter that never limits, so tests aren't capped at 10 Scans a minute. */
+export const noLimit: RateLimit = { limit: async () => ({ success: true }) };
+
+/**
+ * Sends a real Request through the Worker's fetch handler with a scripted
+ * Resolver, no caching and no rate limit unless `deps` says otherwise.
+ */
 export async function scanRequest(
   url: string,
   script: DnsScript = {},
   deps: Partial<Deps> = {},
+  { headers, env: envOverrides }: { headers?: HeadersInit; env?: Partial<Env> } = {},
 ): Promise<Response> {
   const handler = createHandler({
     resolver: fakeResolver(script),
     now: () => SCAN_TIME,
+    cache: noCache,
+    limiter: noLimit,
     ...deps,
   });
   const ctx = createExecutionContext();
   const response = await handler.fetch!(
-    new Request(url) as Request<unknown, IncomingRequestCfProperties>,
-    env,
+    new Request(url, { headers }) as Request<unknown, IncomingRequestCfProperties>,
+    { ...env, ...envOverrides } as Env,
     ctx,
   );
   await waitOnExecutionContext(ctx);
