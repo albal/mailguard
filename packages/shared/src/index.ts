@@ -34,17 +34,24 @@ export interface MxCheck extends CheckBase<"mx"> {
 /** A DMARC policy value (`p=` / `sp=`). */
 export type DmarcPolicy = "none" | "quarantine" | "reject";
 
+/**
+ * Where the DMARC policy came from (RFC 9989 §4.10.1): the Domain's own
+ * record, or one inherited from its Organizational Domain or, failing that,
+ * from the Public Suffix Domain above it (a `psd=y` record).
+ */
+export type DmarcPolicySource = "domain" | "organizational-domain" | "public-suffix-domain";
+
 export interface DmarcCheck extends CheckBase<"dmarc"> {
-  /** The domain whose `_dmarc` record supplied the policy: the Domain or its Organizational Domain. Null when none was found. */
+  /** The domain whose `_dmarc` record supplied the policy. Null when none was found. */
   policyDomain: string | null;
-  /** True when the policy was inherited from the Organizational Domain. */
-  inherited: boolean;
+  /** Where the policy came from. Null when none was found. */
+  policySource: DmarcPolicySource | null;
   /** The DMARC record as published, or null when none was found. */
   record: string | null;
-  /** The policy that applies to the Domain (`sp=` over `p=` when inherited). Null when there is no valid record. */
+  /** The policy that applies to the Domain (`sp=` over `p=` when inherited). Null when no policy applies. */
   policy: DmarcPolicy | null;
-  /** Percentage of mail the policy applies to (`pct=`, default 100). Null when there is no valid record. */
-  pct: number | null;
+  /** True when the record asks for test mode (`t=y`), which applies one level below the stated policy. */
+  testMode: boolean;
 }
 
 /**

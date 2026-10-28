@@ -30,10 +30,10 @@ export function aDmarcCheck(overrides: Partial<DmarcCheck> = {}): Check {
     result: "pass",
     explanation: "This domain publishes its own DMARC policy.",
     policyDomain: "example.com",
-    inherited: false,
+    policySource: "domain",
     record: "v=DMARC1; p=reject",
     policy: "reject",
-    pct: 100,
+    testMode: false,
     ...overrides,
   };
 }

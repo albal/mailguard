@@ -8,8 +8,7 @@
     "typecheck": "tsc -p ."
   },
   "dependencies": {
-    "@mailguard/shared": "*",
-    "tldts": "7.4.19"
+    "@mailguard/shared": "*"
   },
   "devDependencies": {
     "@cloudflare/vitest-plugin": "1.4.9",

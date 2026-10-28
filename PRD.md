@@ -43,15 +43,15 @@ Every **Check** produces a **Check Result**: Pass, Warning, Fail or **Inconclusi
 | Warning | `?all`, or no `all` mechanism |
 | Pass    | `-all` or `~all` |
 
-**DMARC** (`_dmarc.<Domain>`, falling back to `_dmarc.<Organizational Domain>`, determined via the Public Suffix List):
+**DMARC** ([RFC 9989](https://www.rfc-editor.org/rfc/rfc9989.html)): `_dmarc.<Domain>` is checked first. If it has no DMARC record, the RFC 9989 DNS Tree Walk (§4.10) finds the **Organizational Domain** (at most 8 queries; names longer than 8 labels are shortened to 7 first; `psd=y`/`psd=n`/`psd=u` are honoured), and that domain's record, or failing that a `psd=y` record, supplies the policy. A record that doesn't begin with `v=DMARC1` is ignored, and a name with several DMARC records is treated as having none.
 
 | Result  | Condition |
 | ------- | --------- |
-| Fail    | No record after fallback, or invalid record |
-| Warning | `p=none`, or `pct` below 100 |
-| Pass    | `p=quarantine` or `p=reject` at 100% |
+| Fail    | No applicable record after discovery; or an invalid `p`/`sp`/`np` with no syntactically valid `rua` URI (no DMARC processing applies) |
+| Warning | The applicable policy is `none` (including a missing `p`, or an invalid `p`/`sp`/`np` with a valid `rua`, both treated as `p=none`), or test mode (`t=y`) |
+| Pass    | The applicable policy is `quarantine` or `reject`, and `t` is not `y` |
 
-When the policy is inherited from the **Organizational Domain**, `sp=` (if present) takes precedence over `p=`. The UI shows which domain the policy came from.
+The applicable policy is `p` when the record is the Domain's own. When the policy is inherited, `sp` takes precedence over `p` if present (`np` doesn't apply, because a Domain that doesn't exist is never Checked). Unknown tags, including the former `pct`, are ignored. The UI shows which domain the policy came from.
 
 **MX**:
 
