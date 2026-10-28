@@ -2,7 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { App } from "./App";
-import { aScan, anMxCheck, stubScanApi } from "./test/scan-api-stub";
+import { aScan, anMxCheck, anSpfCheck, stubScanApi } from "./test/scan-api-stub";
 
 async function startScan(input: string) {
   render(<App />);
@@ -100,5 +100,49 @@ describe("Showing a Scan", () => {
     const mxCard = await screen.findByRole("article", { name: "MX" });
     const checkResult = within(mxCard).getByTestId("check-result");
     expect(checkResult).toHaveTextContent(`${icon} ${label}`);
+  });
+});
+
+describe("Showing the SPF Check", () => {
+  it("shows an SPF card under Security Protocols with its explanation, record and lookup count", async () => {
+    stubScanApi(
+      aScan({
+        verdict: "at-risk",
+        checks: [
+          anMxCheck(),
+          anSpfCheck({
+            result: "warning",
+            explanation: "This domain's SPF record ends in ?all, a neutral policy.",
+            records: ["v=spf1 include:_spf.example.net ?all"],
+            lookupCount: 3,
+            allQualifier: "?",
+          }),
+        ],
+      }),
+    );
+
+    await startScan("example.com");
+
+    const securityProtocols = await screen.findByRole("region", { name: "Security Protocols" });
+    const spfCard = within(securityProtocols).getByRole("article", { name: "SPF" });
+    expect(within(spfCard).getByTestId("check-result")).toHaveTextContent("! Warning");
+    expect(within(spfCard).getByText("This domain's SPF record ends in ?all, a neutral policy.")).toBeInTheDocument();
+    expect(within(spfCard).getByText("v=spf1 include:_spf.example.net ?all")).toBeInTheDocument();
+    expect(within(spfCard).getByText(/3 of 10 DNS lookups/)).toBeInTheDocument();
+  });
+
+  it("lists every record when the Domain publishes more than one", async () => {
+    stubScanApi(
+      aScan({
+        checks: [anSpfCheck({ result: "fail", records: ["v=spf1 -all", "v=spf1 ~all"], lookupCount: null })],
+      }),
+    );
+
+    await startScan("example.com");
+
+    const spfCard = await screen.findByRole("article", { name: "SPF" });
+    expect(within(spfCard).getByText("v=spf1 -all")).toBeInTheDocument();
+    expect(within(spfCard).getByText("v=spf1 ~all")).toBeInTheDocument();
+    expect(within(spfCard).queryByText(/DNS lookups/)).not.toBeInTheDocument();
   });
 });
