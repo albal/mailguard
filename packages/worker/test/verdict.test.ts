@@ -1,28 +1,47 @@
 import { describe, expect, it } from "vitest";
 import type { DnsScript } from "./fake-resolver";
-import { scan } from "./scan-helpers";
+import { checkOf, scan } from "./scan-helpers";
 
 // The Verdict is the worst Check Result across the Scan (PRD §2.3).
-// Each row drives the Scan's Checks to the given worst result through DNS alone.
-const resolvingMx: DnsScript = {
-  "example.com": { MX: ["10 mx.example.com"] },
-  "mx.example.com": { A: ["192.0.2.1"] },
-};
+// Each row drives the Scan's Checks to the given results through DNS alone.
+
+/** DNS for example.com with an MX of the given result and an SPF record of the given result. */
+function dns(mx: "pass" | "warning" | "fail" | "inconclusive", spf: "pass" | "warning" | "fail" | "inconclusive"): DnsScript {
+  const mxRecords = {
+    pass: { MX: ["10 mx.example.com"] },
+    warning: { A: ["192.0.2.1"] },
+    fail: {},
+    inconclusive: { MX: "timeout" },
+  } as const satisfies DnsScript[string];
+  const spfRecords = {
+    pass: { TXT: ["v=spf1 mx -all"] },
+    warning: { TXT: ["v=spf1 mx ?all"] },
+    fail: { TXT: ["v=spf1 +all"] },
+    inconclusive: { TXT: "error" },
+  } as const satisfies DnsScript[string];
+  return {
+    "example.com": { ...mxRecords[mx], ...spfRecords[spf] } as DnsScript[string],
+    "mx.example.com": { A: ["192.0.2.1"] },
+  };
+}
 
 describe("Verdict", () => {
-  it("is Well Configured when every Check passes", async () => {
-    expect((await scan("example.com", resolvingMx)).verdict).toBe("well-configured");
-  });
+  it.each([
+    ["pass", "pass", "well-configured"],
+    ["fail", "pass", "high-risk"],
+    ["pass", "fail", "high-risk"],
+    ["warning", "fail", "high-risk"],
+    ["inconclusive", "fail", "high-risk"],
+    ["warning", "pass", "at-risk"],
+    ["pass", "warning", "at-risk"],
+    ["inconclusive", "warning", "at-risk"],
+    ["inconclusive", "pass", "incomplete"],
+    ["pass", "inconclusive", "incomplete"],
+  ] as const)("with MX %s and SPF %s is %s", async (mxResult, spfResult, verdict) => {
+    const result = await scan("example.com", dns(mxResult, spfResult));
 
-  it("is High Risk when any Check fails", async () => {
-    expect((await scan("example.com", {})).verdict).toBe("high-risk");
-  });
-
-  it("is At Risk when there are Warnings but no Fails", async () => {
-    expect((await scan("example.com", { "example.com": { A: ["192.0.2.1"] } })).verdict).toBe("at-risk");
-  });
-
-  it("is Incomplete when a Check is Inconclusive and none fail or warn", async () => {
-    expect((await scan("example.com", { "example.com": { MX: "timeout" } })).verdict).toBe("incomplete");
+    expect(checkOf(result, "mx").result).toBe(mxResult);
+    expect(checkOf(result, "spf").result).toBe(spfResult);
+    expect(result.verdict).toBe(verdict);
   });
 });

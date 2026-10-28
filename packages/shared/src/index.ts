@@ -31,11 +31,26 @@ export interface MxCheck extends CheckBase<"mx"> {
   implicitMxAddresses: string[];
 }
 
+/** The qualifier on an SPF record's `all` mechanism. */
+export type SpfAllQualifier = "+" | "-" | "~" | "?";
+
+export interface SpfCheck extends CheckBase<"spf"> {
+  /** Every SPF record (`v=spf1 …`) published at the Domain: normally exactly one. */
+  records: string[];
+  /** DNS lookups the record needs, counting nested `include:`/`redirect=`; null if not counted. */
+  lookupCount: number | null;
+  /** Qualifier of the effective `all` (following `redirect=`), or null when there is none. */
+  allQualifier: SpfAllQualifier | null;
+  /** Sending IPs: the single-address `ip4:`/`ip6:` entries of the Domain's own record. */
+  sendingIps: string[];
+}
+
 /**
  * One entry per Check in a Scan. Each Check adds its own member to this
  * union (e.g. `| SpfCheck`), discriminated by `kind`.
  */
-export type Check = MxCheck;
+export type Check = MxCheck
+  | SpfCheck;
 
 export type CheckKind = Check["kind"];
 
