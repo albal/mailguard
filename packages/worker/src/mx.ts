@@ -38,17 +38,17 @@ export async function lookupMx(resolver: Resolver, domain: string): Promise<MxLo
 }
 
 /**
- * Receiving IPs: the addresses of the MX hosts (or of the domain itself when
- * it has no MX), and whether any lookup failed so the list may be incomplete.
+ * Receiving IPs: the A/AAAA addresses of the MX hosts, and whether any lookup
+ * failed so the list may be incomplete. A Null MX or no MX at all means none:
+ * an implicit MX's addresses are not Receiving IPs (GLOSSARY).
  */
 export function receivingIpsOf(lookup: MxLookup): AddressLookup {
   switch (lookup.kind) {
     case "undetermined":
       return { addresses: [], undetermined: true };
     case "null":
-      return { addresses: [], undetermined: false };
     case "implicit":
-      return { addresses: lookup.addresses, undetermined: lookup.undetermined };
+      return { addresses: [], undetermined: false };
     case "hosts":
       return { addresses: lookup.hosts.flatMap((h) => h.addresses), undetermined: lookup.undetermined };
   }

@@ -105,6 +105,31 @@ describe("Blocklist Check: Receiving IPs", () => {
     ]);
   });
 
+  it("has no Receiving IPs when there is no MX, even if the Domain has its own A/AAAA (implicit MX)", async () => {
+    const resolver = fakeResolver({
+      "example.com": { A: ["192.0.2.80"], AAAA: ["2001:db8::80"] },
+      [`example.com.${TEST_DQS_KEY}.dbl.dq.spamhaus.net`]: "nxdomain",
+    });
+    const blocklists = checkOf(await scan("example.com", {}, { resolver }), "blocklists");
+
+    expect(blocklists.lookups.map((l) => l.subject)).toEqual(["example.com"]);
+    expect(resolver.queries.some((q) => q.includes("80.2.0.192"))).toBe(false);
+    expect(blocklists.result).toBe("pass");
+  });
+
+  it("has no Receiving IPs, and isn't Inconclusive, when there is no MX and the Domain's own A lookup fails", async () => {
+    const blocklists = checkOf(
+      await scan("example.com", {
+        "example.com": { A: "timeout" },
+        [`example.com.${TEST_DQS_KEY}.dbl.dq.spamhaus.net`]: "nxdomain",
+      }),
+      "blocklists",
+    );
+
+    expect(blocklists.lookups.map((l) => l.subject)).toEqual(["example.com"]);
+    expect(blocklists.result).toBe("pass");
+  });
+
   it("is Inconclusive when the MX lookup fails, since Receiving IPs may be missing", async () => {
     const blocklists = checkOf(await scan("example.com", { "example.com": { MX: "error" } }), "blocklists");
 

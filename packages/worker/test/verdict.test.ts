@@ -61,7 +61,7 @@ describe("Verdict", () => {
   });
 });
 
-// Blocklist Check results for the Receiving IP 192.0.2.1 (the MX host, or the implicit MX).
+// Blocklist Check results for the Receiving IP 192.0.2.1 (the MX host).
 const blocklistRecords: Record<Exclude<Result, "warning">, DnsScript> = {
   pass: {
     "1.2.0.192.bl.spamcop.net": "nxdomain",
@@ -85,7 +85,7 @@ describe("Verdict with Blocklists", () => {
     ["pass", "pass", "pass", "well-configured"],
     ["pass", "pass", "fail", "high-risk"],
     ["pass", "pass", "inconclusive", "incomplete"],
-    ["warning", "pass", "inconclusive", "at-risk"],
+    ["pass", "warning", "inconclusive", "at-risk"],
     ["pass", "warning", "fail", "high-risk"],
   ] as const)("with MX %s, SPF %s and Blocklists %s is %s", async (mxResult, spfResult, blocklistResult, verdict) => {
     const result = await scan("example.com", { ...dns(mxResult, spfResult), ...blocklistRecords[blocklistResult] });
