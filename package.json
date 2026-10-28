@@ -1,0 +1,14 @@
+{
+  "name": "mailguard",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "dev:worker": "npm run dev -w @mailguard/worker",
+    "dev:app": "npm run dev -w @mailguard/app"
+  }
+}
